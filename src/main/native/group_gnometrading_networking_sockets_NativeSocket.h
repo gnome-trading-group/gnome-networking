@@ -42,18 +42,26 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_c
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    read0
- * Signature: (IJII)I
+ * Signature: (IJI)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_read0
-  (JNIEnv *, jobject, jint, jlong, jint, jint);
+  (JNIEnv *, jobject, jint, jlong, jint);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    write0
- * Signature: (IJII)I
+ * Signature: (IJI)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_write0
-  (JNIEnv *, jobject, jint, jlong, jint, jint);
+  (JNIEnv *, jobject, jint, jlong, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    configureBlocking0
+ * Signature: (IZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_configureBlocking0
+  (JNIEnv *, jobject, jint, jboolean);
 
 #ifdef __cplusplus
 }

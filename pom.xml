@@ -42,7 +42,12 @@
         <dependency>
             <groupId>group.gnometrading</groupId>
             <artifactId>gnome-core</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.12</version>
         </dependency>
     </dependencies>
 
@@ -55,13 +60,18 @@
                 <configuration>
                     <compilerArgs>
                         <arg>--add-exports=java.base/sun.nio.ch=ALL-UNNAMED</arg>
+                        <arg>-h</arg>
+                        <arg>${jni.codePath}</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <mainClass>group.gnometrading.networking.Main</mainClass>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -72,29 +82,6 @@
                 <artifactId>maven-antrun-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
-                    <execution>
-                        <id>generate-headers</id>
-                        <phase>compile</phase>
-                        <goals><goal>run</goal></goals>
-                        <configuration>
-                            <target>
-                                <exec executable="bash">
-                                    <arg value="-c"/>
-                                    <arg line='"find ${project.basedir} -name "*.java" > .sources.txt"'/>
-                                </exec>
-                                <exec executable="javac">
-                                    <arg value="-h"/>
-                                    <arg value="${jni.codePath}"/>
-                                    <arg value="-d"/>
-                                    <arg value="${project.build.outputDirectory}"/>
-                                    <arg value="@.sources.txt"/>
-                                </exec>
-                                <exec executable="rm">
-                                    <arg line=".sources.txt"/>
-                                </exec>
-                            </target>
-                        </configuration>
-                    </execution>
                     <execution>
                         <id>make</id>
                         <phase>compile</phase>
