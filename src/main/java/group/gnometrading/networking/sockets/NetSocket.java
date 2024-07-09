@@ -5,15 +5,30 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketOption;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 
+/**
+ * GnomeSocket implementation for java.net Sockets. Note, this
+ * implementation creates copies of read/write buffers on each invocation.
+ */
 public class NetSocket implements GnomeSocket {
 
-    private final Socket socket;
+    protected final Socket socket;
     private final InetSocketAddress remoteAddress;
+    private final ReadableByteChannel inputChannel;
+    private final WritableByteChannel outputChannel;
 
     public NetSocket(InetSocketAddress remoteAddress) throws IOException {
         this.remoteAddress = remoteAddress;
-        this.socket = new Socket(this.remoteAddress.getAddress(), this.remoteAddress.getPort());
+        this.socket = this.createSocket(remoteAddress);
+        this.inputChannel = Channels.newChannel(this.socket.getInputStream());
+        this.outputChannel = Channels.newChannel(this.socket.getOutputStream());
+    }
+
+    protected Socket createSocket(InetSocketAddress remoteAddress) throws IOException {
+        return new Socket(this.remoteAddress.getAddress(), this.remoteAddress.getPort());
     }
 
     @Override
@@ -38,13 +53,12 @@ public class NetSocket implements GnomeSocket {
 
     @Override
     public int read(ByteBuffer directBuffer, int len) throws IOException {
-        return this.socket.getInputStream().read(directBuffer.array(), directBuffer.position(), len);
+        return this.inputChannel.read(directBuffer);
     }
 
     @Override
     public int write(ByteBuffer directBuffer, int len) throws IOException {
-        this.socket.getOutputStream().write(directBuffer.array(), directBuffer.position(), len);
-        return 0; // TODO: Anything better to return here?
+        return this.outputChannel.write(directBuffer);
     }
 
     @Override

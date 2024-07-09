@@ -1,0 +1,80 @@
+package group.gnometrading.networking.http;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class HTTPEncoderTest {
+
+    private static Stream<Arguments> testEncodingArguments() throws MalformedURLException {
+        return Stream.of(
+                Arguments.of(
+                        "HTTP/1.1", HTTPMethod.GET, "/hello", new URL("http://google.com"), null, lines(
+                                "GET /hello HTTP/1.1",
+                                "Host: google.com"
+                        )
+                ),
+                Arguments.of(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), null, lines(
+                                "GET /hello123 HTTPS/1.1",
+                                "Host: google.com"
+                        )
+                ),
+                Arguments.of(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), new byte[0], linesWithBody(
+                                new byte[0],
+                                "GET /hello123 HTTPS/1.1",
+                                "Host: google.com",
+                                "Content-Length: 0"
+                        )
+                ),
+                Arguments.of(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), "hi".getBytes(StandardCharsets.UTF_8), linesWithBody(
+                                "hi".getBytes(StandardCharsets.UTF_8),
+                                "GET /hello123 HTTPS/1.1",
+                                "Host: google.com",
+                                "Content-Length: 2"
+                        )
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("testEncodingArguments")
+    void testEncoding(String protocol, HTTPMethod httpMethod, String path, URL url, byte[] body, String expected) {
+        HTTPEncoder httpEncoder = new HTTPEncoder(protocol);
+
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        httpEncoder.wrap(out);
+
+        httpEncoder.encode(httpMethod, path, url, body);
+        out.flip();
+        assertEquals(expected, String.valueOf(StandardCharsets.UTF_8.decode(out)));
+    }
+
+    private static String lines(String... lines) {
+        StringBuilder res = new StringBuilder();
+        for (String l : lines) {
+            res.append(l).append("\r\n");
+        }
+        res.append("\r\n");
+        return res.toString();
+    }
+
+    private static String linesWithBody(byte[] body, String... lines) {
+        StringBuilder res = new StringBuilder(lines(lines));
+        for (byte b : body) {
+            res.append((char) b);
+        }
+        return res.toString();
+    }
+
+}

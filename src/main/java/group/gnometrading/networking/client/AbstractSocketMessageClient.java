@@ -17,12 +17,9 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
     public ByteBuffer readMessage() throws IOException {
         ByteBuffer direct = this.read();
         direct.mark();
-        if (isCompleteMessage(direct)) {
-            direct.reset();
-            return direct;
-        } else {
-            return EMPTY_BUFFER;
-        }
+        final boolean complete = isCompleteMessage(direct);
+        direct.reset();
+        return complete ? direct : EMPTY_BUFFER;
     }
 
     @Override

@@ -10,12 +10,10 @@ public class NIOSocket implements GnomeSocket {
 
     private final SocketChannel socketChannel;
     private final InetSocketAddress remoteAddress;
-    private final ByteBuffer[] holder;
 
     public NIOSocket(InetSocketAddress remoteAddress) throws IOException {
         this.remoteAddress = remoteAddress;
         this.socketChannel = SocketChannel.open();
-        this.holder = new ByteBuffer[1];
     }
 
     @Override
@@ -41,14 +39,11 @@ public class NIOSocket implements GnomeSocket {
     @Override
     public int read(ByteBuffer directBuffer, int len) throws IOException {
         return this.socketChannel.read(directBuffer);
-//        this.holder[0] = directBuffer;
-//        return (int) this.socketChannel.read(this.holder, directBuffer.position(), len);
     }
 
     @Override
     public int write(ByteBuffer directBuffer, int len) throws IOException {
         return this.socketChannel.write(directBuffer);
-//        return (int) this.socketChannel.write(this.holder, directBuffer.position(), len);
     }
 
     @Override

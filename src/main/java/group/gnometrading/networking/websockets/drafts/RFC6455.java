@@ -67,7 +67,6 @@ public class RFC6455 extends Draft {
         int headers = 0; // header bitmap, should be 0b111
         StringBuilder builder = new StringBuilder();
 
-        // TODO: This needs to wait for \r\n\r\n before exiting
         while (index < buffer.remaining()) {
             if (buffer.get(index) != '\n') {
                 builder.append(Character.toLowerCase((char) buffer.get(index)));

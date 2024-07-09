@@ -34,7 +34,7 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
         this.draft = draft;
         this.uri = uri;
         this.frame = this.draft.getDataFrame();
-        this.payloadBuffer = ByteBuffer.allocate(1 << 13);
+        this.payloadBuffer = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
     }
 
     private static InetSocketAddress parseURI(URI uri) {
@@ -73,9 +73,9 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
         }
 
         this.readBuffer.position(this.readBuffer.position() + this.frame.length());
-        this.payloadBuffer.clear();
         return switch (this.frame.getOpcode()) {
             case TEXT, BINARY -> {
+                this.payloadBuffer.clear();
                 this.frame.copyPayloadData(this.payloadBuffer);
                 yield this.payloadBuffer.flip();
             }
