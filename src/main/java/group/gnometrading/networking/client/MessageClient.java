@@ -4,7 +4,5 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public interface MessageClient extends Client {
-    ByteBuffer readMessage() throws IOException;
-
-    int writeMessage(ByteBuffer message) throws IOException;
+    boolean readMessage() throws IOException;
 }

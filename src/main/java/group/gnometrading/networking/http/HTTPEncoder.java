@@ -25,7 +25,7 @@ public class HTTPEncoder {
         this.buffer = buffer;
     }
 
-    public void encode(final HTTPMethod method, final String path, final URL url, final byte[] body) {
+    public void encode(final HTTPMethod method, final String path, final String host, final byte[] body) {
         ByteBufferUtils.putString(this.buffer, method.name());
         this.buffer.put((byte) ' ');
         ByteBufferUtils.putString(this.buffer, path);
@@ -34,7 +34,10 @@ public class HTTPEncoder {
         ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
 
         ByteBufferUtils.putString(this.buffer, "Host: ");
-        ByteBufferUtils.putString(this.buffer, url.getHost());
+        ByteBufferUtils.putString(this.buffer, host);
+        ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
+
+        ByteBufferUtils.putString(this.buffer, "Connection: keep-alive");
         ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
 
         if (body != null) {

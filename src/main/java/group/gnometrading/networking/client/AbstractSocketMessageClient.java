@@ -4,7 +4,6 @@ import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 
 public abstract class AbstractSocketMessageClient extends SocketClient implements MessageClient {
 
@@ -14,18 +13,17 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
     }
 
     @Override
-    public ByteBuffer readMessage() throws IOException {
-        ByteBuffer direct = this.read();
-        direct.mark();
-        final boolean complete = isCompleteMessage(direct);
-        direct.reset();
-        return complete ? direct : EMPTY_BUFFER;
+    public boolean readMessage() throws IOException {
+        int bytes = this.read();
+        if (bytes < 0) {
+            return false;
+        }
+        this.readBuffer.mark();
+        final boolean complete = isCompleteMessage();
+        if (!complete)
+            this.readBuffer.reset();
+        return complete;
     }
 
-    @Override
-    public int writeMessage(ByteBuffer message) throws IOException {
-        return this.write(message);
-    }
-
-    public abstract boolean isCompleteMessage(ByteBuffer directBuffer);
+    public abstract boolean isCompleteMessage();
 }

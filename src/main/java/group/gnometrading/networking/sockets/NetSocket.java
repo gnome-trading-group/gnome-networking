@@ -3,7 +3,6 @@ package group.gnometrading.networking.sockets;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketOption;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -59,10 +58,5 @@ public class NetSocket implements GnomeSocket {
     @Override
     public int write(ByteBuffer directBuffer, int len) throws IOException {
         return this.outputChannel.write(directBuffer);
-    }
-
-    @Override
-    public <T> void setOption(SocketOption<T> socketOption, T t) throws IOException {
-        this.socket.setOption(socketOption, t);
     }
 }

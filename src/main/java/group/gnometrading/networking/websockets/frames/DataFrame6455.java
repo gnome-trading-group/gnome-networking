@@ -112,7 +112,7 @@ public class DataFrame6455 implements DataFrame {
     }
 
     @Override
-    public void copyPayloadData(ByteBuffer other) {
+    public void copyPayloadData(final ByteBuffer other) {
         int index = offset + 1 + this.getPayloadLengthOctets() + (this.masked() ? 4 : 0);
         int payloadLength = this.getPayloadLength();
 

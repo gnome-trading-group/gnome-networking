@@ -7,15 +7,21 @@ public interface Client extends AutoCloseable {
 
     void connect() throws IOException;
 
-    default int write(ByteBuffer buffer) throws IOException {
-        return write(buffer, buffer.remaining());
+    default int write() throws IOException {
+        return write(Integer.MAX_VALUE);
     }
 
-    int write(ByteBuffer buffer, int len) throws IOException;
+    int write(int len) throws IOException;
 
-    ByteBuffer read() throws IOException;
+    default int read() throws IOException {
+        return read(Integer.MAX_VALUE);
+    }
 
-    ByteBuffer read(int len) throws IOException;
+    int read(int len) throws IOException;
 
     void configureBlocking(boolean blocking) throws IOException;
+
+    ByteBuffer getWriteBuffer();
+
+    ByteBuffer getReadBuffer();
 }

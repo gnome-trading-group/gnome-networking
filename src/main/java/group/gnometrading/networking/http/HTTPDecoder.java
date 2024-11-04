@@ -37,6 +37,9 @@ public class HTTPDecoder {
         }
 
         this.completed = this.buffer.remaining() >= this.contentLength;
+        if (this.completed) {
+            this.buffer.position(this.buffer.position() + this.contentLength);
+        }
     }
 
     private boolean parseStatusLine() {

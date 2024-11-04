@@ -1,7 +1,6 @@
 package group.gnometrading.networking.sockets;
 
 import java.io.IOException;
-import java.net.SocketOption;
 import java.nio.ByteBuffer;
 
 public interface GnomeSocket extends AutoCloseable {
@@ -32,9 +31,5 @@ public interface GnomeSocket extends AutoCloseable {
 
     default void configureBlocking(boolean blocking) throws IOException {
         throw new UnsupportedOperationException("Socket does not support non-blocking");
-    }
-
-    default <T> void setOption(SocketOption<T> socketOption, T t) throws IOException {
-        throw new UnsupportedOperationException("Socket does not support configuring options");
     }
 }

@@ -12,7 +12,7 @@ public class SocketClient implements Client {
 
     public static final int DEFAULT_READ_BUFFER_SIZE = 1 << 13; // 8kb
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 1 << 11; // 2kb
-    protected static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocateDirect(0);
+    public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocateDirect(0);
 
     protected final GnomeSocket socket;
     protected final ByteBuffer readBuffer;
@@ -47,30 +47,30 @@ public class SocketClient implements Client {
     }
 
     @Override
-    public int write(ByteBuffer buffer, int len) throws IOException {
-        int originalLimit = buffer.limit();
-        buffer.limit(buffer.position() + len);
-        int remaining = buffer.remaining();
-        this.writeBuffer.put(buffer);
+    public int write(int len) throws IOException {
         this.writeBuffer.flip();
-        int bytesWritten = this.socket.write(this.writeBuffer, len);
+        len = Math.min(len, this.writeBuffer.remaining());
 
-        if (bytesWritten > 0) {
-            buffer.position(buffer.position() - (remaining - bytesWritten));
+        int bytes = this.socket.write(this.writeBuffer, len);
+
+        if (bytes > 0) {
+            if (this.writeBuffer.remaining() == 0) {
+                this.writeBuffer.clear();
+            } else {
+                this.writeBuffer.compact();
+            }
+        } else if (this.writeBuffer.limit() < this.writeBuffer.capacity()) {
+            // There's unconsumed bytes, reverse flip
+            this.writeBuffer.position(this.writeBuffer.limit());
+            this.writeBuffer.limit(this.writeBuffer.capacity());
         }
-        buffer.limit(originalLimit);
-        this.writeBuffer.clear();
-        return IOStatus.normalize(bytesWritten);
+
+        return IOStatus.normalize(bytes);
     }
 
 
     @Override
-    public ByteBuffer read() throws IOException {
-        return this.read(this.readBuffer.capacity());
-    }
-
-    @Override
-    public ByteBuffer read(int len) throws IOException {
+    public int read(int len) throws IOException {
         if (this.readBuffer.position() > 0) {
             if (this.readBuffer.remaining() == 0) {
                 this.readBuffer.clear();
@@ -92,7 +92,7 @@ public class SocketClient implements Client {
             this.readBuffer.limit(bytes < 0 ? 0 : bytes); // avoid Math.max stackframe?
         }
 
-        return this.readBuffer;
+        return IOStatus.normalize(bytes);
     }
 
 
@@ -104,5 +104,15 @@ public class SocketClient implements Client {
     @Override
     public void configureBlocking(boolean blocking) throws IOException {
         this.socket.configureBlocking(blocking);
+    }
+
+    @Override
+    public ByteBuffer getWriteBuffer() {
+        return this.writeBuffer;
+    }
+
+    @Override
+    public ByteBuffer getReadBuffer() {
+        return this.readBuffer;
     }
 }

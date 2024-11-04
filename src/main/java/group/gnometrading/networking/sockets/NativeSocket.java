@@ -75,8 +75,6 @@ public class NativeSocket implements GnomeSocket {
     @Override
     public int read(ByteBuffer directBuffer, int len) throws IOException {
         ensureConnected();
-        if (len == 0)
-            return 0;
         int pos = directBuffer.position();
         int n = this.read0(this.fd, ((DirectBuffer) directBuffer).address() + pos, len);
         n = IOStatus.normalize(n);
@@ -95,8 +93,6 @@ public class NativeSocket implements GnomeSocket {
     @Override
     public int write(ByteBuffer directBuffer, int len) throws IOException {
         ensureConnected();
-        if (len == 0)
-            return 0;
         int pos = directBuffer.position();
         int written = this.write0(fd, ((DirectBuffer) directBuffer).address() + pos, len);
         if (written > 0)

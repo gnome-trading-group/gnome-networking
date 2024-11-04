@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.*;
 
 public class HandshakeHandler {
@@ -51,7 +50,8 @@ public class HandshakeHandler {
     private static void sendHandshake(Client client, Draft draft, HandshakeInput input) {
         try {
             byte[] write = draft.createHandshake(input);
-            client.write(ByteBuffer.wrap(write));
+            client.getWriteBuffer().put(write);
+            client.write();
         } catch (IOException ignore) {
             throw new InvalidHandshakeException(HandshakeState.INVALID_WRITE);
         }
@@ -60,8 +60,10 @@ public class HandshakeHandler {
     private static HandshakeState acceptHandshake(Client client, Draft draft) {
         try {
             while (true) {
-                ByteBuffer clientBuffer = client.read();
-                HandshakeState result = draft.parseHandshake(clientBuffer);
+                int bytes = client.read();
+                if (bytes <= 0) continue;
+
+                HandshakeState result = draft.parseHandshake(client.getReadBuffer());
 
                 if (result != HandshakeState.INCOMPLETE) {
                     return result;

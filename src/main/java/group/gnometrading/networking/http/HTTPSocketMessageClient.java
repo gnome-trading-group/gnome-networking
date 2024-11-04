@@ -7,72 +7,59 @@ import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.nio.ByteBuffer;
 
-public class HTTPSocketMessageClient extends AbstractSocketMessageClient {
+class HTTPSocketMessageClient extends AbstractSocketMessageClient {
 
     public static final int DEFAULT_PORT = 80;
     public static final int DEFAULT_HTTPS_PORT = 443;
     public static final int DEFAULT_HTTP_READ_BUFFER_SIZE = 1 << 15; // 32kb
 
-    private final URL url;
     private final HTTPDecoder httpDecoder;
     private final HTTPEncoder httpEncoder;
-    private final ByteBuffer payloadBuffer;
+    private final String host;
 
-    public HTTPSocketMessageClient(final URL url) throws IOException {
-        super(parseURL(url), parseSocketFactory(url), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
-        this.url = url;
+    public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host) throws IOException {
+        super(parseURL(host, parsePort(protocol)), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
+        this.host = host;
         this.httpDecoder = new HTTPDecoder();
         this.httpEncoder = new HTTPEncoder();
-        this.payloadBuffer = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
+//        this.socket.configureBlocking(true);
     }
 
-    private static int parsePort(final URL url) {
-        return url.getPort() == -1 ? (url.getProtocol().equals("https") ? DEFAULT_HTTPS_PORT : DEFAULT_PORT) : url.getPort();
+    private static int parsePort(final HTTPProtocol protocol) {
+        return protocol == HTTPProtocol.HTTPS ? DEFAULT_HTTPS_PORT : DEFAULT_PORT;
     }
 
-    private static boolean isSSL(final URL url) {
-        return parsePort(url) == DEFAULT_HTTPS_PORT;
+    private static InetSocketAddress parseURL(final String host, final int port) {
+        return new InetSocketAddress(host, port);
     }
 
-    private static InetSocketAddress parseURL(final URL url) {
-        return new InetSocketAddress(url.getHost(), parsePort(url));
-    }
-
-    private static GnomeSocketFactory parseSocketFactory(final URL url) {
-        return isSSL(url) ? new NetSSLSocketFactory() : GnomeSocketFactory.getDefault();
+    private static GnomeSocketFactory parseSocketFactory(final HTTPProtocol protocol) {
+        return protocol == HTTPProtocol.HTTPS ? new NetSSLSocketFactory() : GnomeSocketFactory.getDefault();
     }
 
     public int request(final HTTPMethod method, final String path, final byte[] body) throws IOException {
         this.writeBuffer.clear();
         httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, url, body);
+        httpEncoder.encode(method, path, this.host, body);
         this.writeBuffer.flip();
 
         return IOStatus.normalize(this.socket.write(this.writeBuffer));
     }
 
     @Override
-    public ByteBuffer readMessage() throws IOException {
-        final ByteBuffer buffer = super.readMessage();
-        if (buffer.remaining() == 0) {
-            return buffer;
-        }
-
-        this.readBuffer.position(this.readBuffer.position() + this.httpDecoder.length());
-        if (this.httpDecoder.contentLength() > 0) {
-            this.payloadBuffer.clear();
-            this.httpDecoder.copyBody(this.payloadBuffer);
-            return this.payloadBuffer.flip();
-        }
-        return EMPTY_BUFFER;
+    public boolean isCompleteMessage() {
+        this.httpDecoder.wrap(this.readBuffer);
+        return this.httpDecoder.isComplete();
     }
 
-    @Override
-    public boolean isCompleteMessage(final ByteBuffer directBuffer) {
-        this.httpDecoder.wrap(directBuffer);
-        return this.httpDecoder.isComplete();
+    public HTTPDecoder getHTTPDecoder() {
+        return httpDecoder;
+    }
+
+    public boolean available() throws IOException {
+        // TODO: Use native socket code to check if the socket is still open
+        return true;
+//        return request(HTTPMethod.HEAD, "/", null) >= 0;
     }
 }
