@@ -17,30 +17,34 @@ class HTTPEncoderTest {
     private static Stream<Arguments> testEncodingArguments() throws MalformedURLException {
         return Stream.of(
                 Arguments.of(
-                        "HTTP/1.1", HTTPMethod.GET, "/hello", new URL("http://google.com"), null, lines(
+                        "HTTP/1.1", HTTPMethod.GET, "/hello", "google.com", null, lines(
                                 "GET /hello HTTP/1.1",
-                                "Host: google.com"
+                                "Host: google.com",
+                                "Connection: keep-alive"
                         )
                 ),
                 Arguments.of(
-                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), null, lines(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", "google.com", null, lines(
                                 "GET /hello123 HTTPS/1.1",
-                                "Host: google.com"
+                                "Host: google.com",
+                                "Connection: keep-alive"
                         )
                 ),
                 Arguments.of(
-                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), new byte[0], linesWithBody(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", "google.com", new byte[0], linesWithBody(
                                 new byte[0],
                                 "GET /hello123 HTTPS/1.1",
                                 "Host: google.com",
+                                "Connection: keep-alive",
                                 "Content-Length: 0"
                         )
                 ),
                 Arguments.of(
-                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", new URL("http://google.com"), "hi".getBytes(StandardCharsets.UTF_8), linesWithBody(
+                        "HTTPS/1.1", HTTPMethod.GET, "/hello123", "google.com", "hi".getBytes(StandardCharsets.UTF_8), linesWithBody(
                                 "hi".getBytes(StandardCharsets.UTF_8),
                                 "GET /hello123 HTTPS/1.1",
                                 "Host: google.com",
+                                "Connection: keep-alive",
                                 "Content-Length: 2"
                         )
                 )
@@ -49,13 +53,13 @@ class HTTPEncoderTest {
 
     @ParameterizedTest
     @MethodSource("testEncodingArguments")
-    void testEncoding(String protocol, HTTPMethod httpMethod, String path, URL url, byte[] body, String expected) {
+    void testEncoding(String protocol, HTTPMethod httpMethod, String path, String host, byte[] body, String expected) {
         HTTPEncoder httpEncoder = new HTTPEncoder(protocol);
 
         ByteBuffer out = ByteBuffer.allocate(10000);
         httpEncoder.wrap(out);
 
-        httpEncoder.encode(httpMethod, path, url, body);
+        httpEncoder.encode(httpMethod, path, host, body);
         out.flip();
         assertEquals(expected, String.valueOf(StandardCharsets.UTF_8.decode(out)));
     }
