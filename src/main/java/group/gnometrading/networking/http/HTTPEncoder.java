@@ -1,8 +1,8 @@
 package group.gnometrading.networking.http;
 
+import group.gnometrading.strings.GnomeString;
 import group.gnometrading.utils.ByteBufferUtils;
 
-import java.net.URL;
 import java.nio.ByteBuffer;
 
 public class HTTPEncoder {
@@ -26,9 +26,7 @@ public class HTTPEncoder {
         this.buffer = buffer;
     }
 
-    public void encode(
-            final HTTPMethod method,
-            final String path,
+    private void encodeBody(
             final String host,
             final byte[] body,
             final String headerKey1,
@@ -36,10 +34,6 @@ public class HTTPEncoder {
             final String headerKey2,
             final String headerValue2
     ) {
-        ByteBufferUtils.putString(this.buffer, method.name());
-        this.buffer.put((byte) ' ');
-        ByteBufferUtils.putString(this.buffer, path);
-        this.buffer.put((byte) ' ');
         ByteBufferUtils.putString(this.buffer, this.protocol);
         ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
 
@@ -74,5 +68,41 @@ public class HTTPEncoder {
         if (body != null) {
             this.buffer.put(body);
         }
+    }
+
+    public void encode(
+            final HTTPMethod method,
+            final GnomeString path,
+            final String host,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) {
+        ByteBufferUtils.putString(this.buffer, method.name());
+        this.buffer.put((byte) ' ');
+        ByteBufferUtils.putString(this.buffer, path);
+        this.buffer.put((byte) ' ');
+
+        encodeBody(host, body, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public void encode(
+            final HTTPMethod method,
+            final String path,
+            final String host,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) {
+        ByteBufferUtils.putString(this.buffer, method.name());
+        this.buffer.put((byte) ' ');
+        ByteBufferUtils.putString(this.buffer, path);
+        this.buffer.put((byte) ' ');
+
+        encodeBody(host, body, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 }

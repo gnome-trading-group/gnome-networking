@@ -3,6 +3,7 @@ package group.gnometrading.networking.http;
 import group.gnometrading.networking.client.AbstractSocketMessageClient;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import group.gnometrading.networking.sockets.factory.NetSSLSocketFactory;
+import group.gnometrading.strings.GnomeString;
 import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
@@ -41,6 +42,23 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     public int request(
             final HTTPMethod method,
             final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        this.writeBuffer.clear();
+        httpEncoder.wrap(this.writeBuffer);
+        httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        this.writeBuffer.flip();
+
+        return IOStatus.normalize(this.socket.write(this.writeBuffer));
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final GnomeString path,
             final byte[] body,
             final String headerKey1,
             final String headerValue1,
