@@ -22,10 +22,20 @@ public class HTTPClient {
         this.body = ByteBuffer.allocate(HTTPSocketMessageClient.DEFAULT_HTTP_READ_BUFFER_SIZE);
     }
 
-    private HTTPResponse request(final HTTPProtocol protocol, final String host, final String path, final HTTPMethod method, final byte[] body) throws IOException {
+    private HTTPResponse request(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final HTTPMethod method,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
         final HTTPSocketMessageClient client = getSocketConnection(protocol, host);
 
-        int result = client.request(method, path, body);
+        int result = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
         if (result < 0) {
             return this.httpResponse.update(false, -1, null);
         }
@@ -58,11 +68,66 @@ public class HTTPClient {
         }
     }
 
-    public HTTPResponse get(final HTTPProtocol protocol, final String host, final String path) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null);
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.GET, null, null, null, null, null);
     }
 
-    public HTTPResponse post(final HTTPProtocol protocol, final String host, final String path, final byte[] body) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body);
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null);
+    }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, null, null, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 }

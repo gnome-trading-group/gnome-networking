@@ -38,10 +38,18 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         return protocol == HTTPProtocol.HTTPS ? new NetSSLSocketFactory() : GnomeSocketFactory.getDefault();
     }
 
-    public int request(final HTTPMethod method, final String path, final byte[] body) throws IOException {
+    public int request(
+            final HTTPMethod method,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
         this.writeBuffer.clear();
         httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, this.host, body);
+        httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
         this.writeBuffer.flip();
 
         return IOStatus.normalize(this.socket.write(this.writeBuffer));
