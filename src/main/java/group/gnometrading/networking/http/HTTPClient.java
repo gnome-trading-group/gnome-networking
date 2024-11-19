@@ -60,9 +60,9 @@ public class HTTPClient {
             return this.httpResponse.update(false, -1, null);
         }
 
-        boolean hasMessage = client.readMessage();
-        if (!hasMessage) {
-            return this.httpResponse.update(false, -1, null);
+        int message = client.readMessage();
+        if (message <= 0) {
+            return this.httpResponse.update(false, message, null);
         }
 
         this.body.clear();

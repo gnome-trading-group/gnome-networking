@@ -13,16 +13,18 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
     }
 
     @Override
-    public boolean readMessage() throws IOException {
+    public int readMessage() throws IOException {
         int bytes = this.read();
         if (bytes < 0) {
-            return false;
+            return bytes;
         }
         this.readBuffer.mark();
         final boolean complete = isCompleteMessage();
-        if (!complete)
+        if (!complete) {
             this.readBuffer.reset();
-        return complete;
+            return 0;
+        }
+        return 1;
     }
 
     public abstract boolean isCompleteMessage();

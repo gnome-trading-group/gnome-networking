@@ -52,9 +52,9 @@ public class WebSocketClient {
     }
 
     public WebSocketResponse read() throws IOException {
-        boolean hasMessage = this.messageClient.readMessage();
-        if (!hasMessage) {
-            return this.response.update(false, null, null);
+        int message = this.messageClient.readMessage();
+        if (message <= 0) {
+            return this.response.update(false, null, null, message < 0);
         }
 
         final Opcode opcode = this.messageClient.frame.getOpcode();
@@ -72,7 +72,7 @@ public class WebSocketClient {
             throw new IllegalStateException("Sorry, I haven't implemented fragments yet.");
         }
 
-        return this.response.update(true, opcode, this.body);
+        return this.response.update(true, opcode, this.body, false);
     }
 
 }
