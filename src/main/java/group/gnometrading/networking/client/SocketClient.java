@@ -12,7 +12,6 @@ public class SocketClient implements Client {
 
     public static final int DEFAULT_READ_BUFFER_SIZE = 1 << 13; // 8kb
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 1 << 11; // 2kb
-    public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocateDirect(0);
 
     protected final GnomeSocket socket;
     protected final ByteBuffer readBuffer;
