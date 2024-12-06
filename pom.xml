@@ -91,28 +91,38 @@
                 <os.classifier>windows</os.classifier>
             </properties>
         </profile>
-    </profiles>
 
+        <profile>
+            <id>deploy-with-classifier</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>3.1.3</version>
+                        <executions>
+                            <execution>
+                                <id>deploy-with-classifier</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>deploy</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>${os.classifier}</classifier>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.3</version>
-                <executions>
-                    <execution>
-                        <id>deploy-with-classifier</id>
-                        <phase>deploy</phase>
-                        <goals>
-                            <goal>deploy</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>${os.classifier}</classifier>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -130,7 +140,7 @@
                 <artifactId>maven-release-plugin</artifactId>
                 <version>3.0.1</version>
                 <configuration>
-                    <goals>verify</goals> <!-- Skip the deploy goal -->
+                    <goals>clean package deploy -Pdeploy-with-classifier</goals>
                 </configuration>
             </plugin>
             <plugin>
