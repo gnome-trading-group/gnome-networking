@@ -31,7 +31,7 @@ jobs:
           server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
 
       - name: Bump and Deploy
-        uses: gnome-trading-group/maven-bump-and-deploy-action@v1.0.12
+        uses: gnome-trading-group/maven-bump-and-deploy-action@v1.0.13
         with:
           push-changes: ${{ matrix.os == 'ubuntu-latest' }}
         env:
