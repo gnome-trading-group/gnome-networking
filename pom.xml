@@ -97,11 +97,44 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.3</version>
+                <configuration>
+                    <skip>true</skip> <!-- Skip the default deployment -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.3</version>
+                <executions>
+                    <execution>
+                        <id>deploy-classified-artifact</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>deploy-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.build.directory}/${project.artifactId}-${project.version}-${artifact.classifier}.jar</file>
+                            <classifier>${os.classifier}</classifier>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <version>${project.version}</version>
+                            <packaging>${project.packaging}</packaging>
+                            <repositoryId>github</repositoryId>
+                            <url>https://maven.pkg.github.com/gnome-trading-group/*</url>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
                 <executions>
                     <execution>
-                        <id>Arbitrary</id>
+                        <id>jar-with-classifier</id>
+                        <phase>package</phase>
                         <goals>
                             <goal>jar</goal>
                         </goals>
