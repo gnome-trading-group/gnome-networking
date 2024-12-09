@@ -4,7 +4,7 @@
 
     <groupId>group.gnometrading</groupId>
     <artifactId>gnome-networking</artifactId>
-    <version>1.0.16-SNAPSHOT</version>
+    <version>1.0.17-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -99,9 +99,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>3.1.3</version>
-                <configuration>
-                    <skip>true</skip> <!-- Skip the default deployment -->
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -132,6 +129,10 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
                 <executions>
+                    <execution>
+                        <id>default-jar</id>
+                        <phase>none</phase>
+                    </execution>
                     <execution>
                         <id>jar-with-classifier</id>
                         <phase>package</phase>
