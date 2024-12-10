@@ -55,33 +55,46 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>linux</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <artifact.classifier>linux</artifact.classifier>
+            </properties>
+        </profile>
+        <profile>
+            <id>macos</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <artifact.classifier>macos</artifact.classifier>
+            </properties>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
-                        <id>package-linux</id>
+                        <id>jar-with-classifier</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>single</goal>
+                            <goal>jar</goal>
                         </goals>
                         <configuration>
-                            <finalName>${project.artifactId}-${project.version}-linux</finalName>
-                            <classifier>linux</classifier>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>package-macos</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <configuration>
-                            <finalName>${project.artifactId}-${project.version}-macos</finalName>
-                            <classifier>macos</classifier>
+                            <classifier>${artifact.classifier}</classifier>
                         </configuration>
                     </execution>
                 </executions>
