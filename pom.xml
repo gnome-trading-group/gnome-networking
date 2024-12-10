@@ -69,9 +69,6 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
-                            <descriptors>
-                                <descriptor>src/assembly/linux.xml</descriptor>
-                            </descriptors>
                             <finalName>${project.artifactId}-${project.version}-linux</finalName>
                             <classifier>linux</classifier>
                         </configuration>
@@ -83,9 +80,6 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
-                            <descriptors>
-                                <descriptor>src/assembly/macos.xml</descriptor>
-                            </descriptors>
                             <finalName>${project.artifactId}-${project.version}-macos</finalName>
                             <classifier>macos</classifier>
                         </configuration>
