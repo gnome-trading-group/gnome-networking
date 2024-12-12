@@ -73,7 +73,7 @@ jobs:
             -DartifactId=gnome-networking \
             -Dversion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
             -Dpackaging=jar \
-            -Dfile=target/my-artifact-${{ matrix.os.classifier }}.jar \
+            -Dfile=target/gnome-networking-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ matrix.os.classifier }}.jar \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
             --settings settings.xml
