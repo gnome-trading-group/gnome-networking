@@ -76,4 +76,5 @@ jobs:
             -Dfile=target/gnome-networking-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ matrix.os.classifier }}.jar \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
+            -DgeneratePom=false \
             --settings settings.xml
