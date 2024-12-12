@@ -1,0 +1,70 @@
+name: Build and Deploy Maven Jars
+on:
+  push:
+    branches:
+      - 'master'
+      - 'main'
+
+jobs:
+  deploy-default-jar:
+    name: Build and Deploy Default
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v3
+
+      - name: Set up Zulu 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+
+      - name: Deploy Default Jar
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn clean deploy -DskipTests \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
+            --settings settings.xml
+
+  deploy-os-specific-jars:
+    needs: deploy-default-jar
+    runs-on: ${{ matrix.os.os }}
+    strategy:
+      matrix:
+        os: [{os: ubuntu-latest, classifier: ubuntu}, {os: macos-latest, classifier: macos}]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Zulu 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+
+      - name: Build OS-Specific JAR
+        run: |
+          mvn clean package
+
+      - name: Deploy OS-Specific JAR
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn deploy:deploy-file \
+            -DgroupId=group.gnometrading \
+            -DartifactId=gnome-networking \
+            -Dversion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
+            -Dpackaging=jar \
+            -Dfile=target/my-artifact-${{ matrix.os.classifier }}.jar \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
+            --settings settings.xml

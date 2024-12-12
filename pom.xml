@@ -4,7 +4,9 @@
 
     <groupId>group.gnometrading</groupId>
     <artifactId>gnome-networking</artifactId>
-    <version>1.0.20-SNAPSHOT</version>
+    <!-- not using Maven release as we need both MacOS and Ubuntu builds -->
+    <!-- update this manually... barbaric, I know -->
+    <version>1.0.20</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
