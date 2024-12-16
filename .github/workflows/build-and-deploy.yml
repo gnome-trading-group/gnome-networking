@@ -45,6 +45,7 @@ jobs:
             -DartifactId=gnome-networking \
             -Dversion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
             -Dclassifier=${{ matrix.os.classifier }} \
+            -DgeneratePom=false \
             -Dpackaging=jar \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
