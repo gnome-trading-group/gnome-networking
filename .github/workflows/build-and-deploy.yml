@@ -29,9 +29,15 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn clean deploy -DskipTests \
+          mvn deploy:deploy-file \
+            -DgroupId=group.gnometrading \
+            -DartifactId=gnome-networking \
+            -Dversion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
+            -Dpackaging=jar \
+            -Dfile=target/gnome-networking-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-linux.jar \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
+            -DgeneratePom=false \
             --settings settings.xml
 
   deploy-os-specific-jars:
