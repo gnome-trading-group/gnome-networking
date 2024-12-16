@@ -24,27 +24,14 @@ jobs:
           distribution: 'zulu'
           server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
 
-      - name: Build OS-Specific JAR
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mvn clean package
-
       - name: Deploy Default Jar
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn deploy:deploy-file \
-            -DgroupId=group.gnometrading \
-            -DartifactId=gnome-networking \
-            -Dversion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
-            -Dpackaging=jar \
-            -Dfile=target/gnome-networking-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-linux.jar \
+          mvn clean deploy -DskipTests \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
-            -DgeneratePom=false \
             --settings settings.xml
 
   deploy-os-specific-jars:
@@ -90,4 +77,5 @@ jobs:
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
             -DgeneratePom=false \
+            -DpomFile=/dev/null \
             --settings settings.xml
