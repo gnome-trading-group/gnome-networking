@@ -7,7 +7,6 @@ on:
 
 jobs:
   deploy-os-specific-jars:
-    needs: deploy-default-jar
     runs-on: ${{ matrix.os.os }}
     permissions:
       packages: write
