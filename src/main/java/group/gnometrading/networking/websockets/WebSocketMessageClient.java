@@ -25,7 +25,15 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
             URI uri,
             Draft draft
     ) throws IOException {
-        super(parseURI(uri), GnomeSocketFactory.getDefault(), DEFAULT_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
+        this(uri, draft, GnomeSocketFactory.getDefault());
+    }
+
+    public WebSocketMessageClient(
+            URI uri,
+            Draft draft,
+            GnomeSocketFactory socketFactory
+    ) throws IOException {
+        super(parseURI(uri), socketFactory, DEFAULT_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
         this.draft = draft;
         this.uri = uri;
         this.frame = this.draft.getDataFrame();

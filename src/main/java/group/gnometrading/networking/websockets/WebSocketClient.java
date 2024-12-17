@@ -1,5 +1,6 @@
 package group.gnometrading.networking.websockets;
 
+import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import group.gnometrading.networking.websockets.drafts.Draft;
 import group.gnometrading.networking.websockets.drafts.RFC6455;
 import group.gnometrading.networking.websockets.enums.Opcode;
@@ -21,7 +22,15 @@ public class WebSocketClient {
     }
 
     public WebSocketClient(final URI uri, final Draft draft) throws IOException {
-        this.messageClient = new WebSocketMessageClient(uri, draft);
+        this(uri, draft, GnomeSocketFactory.getDefault());
+    }
+
+    public WebSocketClient(final URI uri, final GnomeSocketFactory socketFactory) throws IOException {
+        this(uri, new RFC6455(), socketFactory);
+    }
+
+    public WebSocketClient(final URI uri, final Draft draft, final GnomeSocketFactory socketFactory) throws IOException {
+        this.messageClient = new WebSocketMessageClient(uri, draft, socketFactory);
         this.response = new WebSocketResponse();
         this.body = ByteBuffer.allocate(WebSocketMessageClient.DEFAULT_READ_BUFFER_SIZE);
     }
