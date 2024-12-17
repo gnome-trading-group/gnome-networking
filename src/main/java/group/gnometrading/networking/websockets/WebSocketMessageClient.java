@@ -46,7 +46,9 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     @Override
     public void connect() throws IOException {
-        super.connect();
+        if (!this.socket.isConnected()) { // Some sockets auto-connect (NetSockets)
+            super.connect();
+        }
 
         HandshakeInput input = new HandshakeInput(this.uri);
         HandshakeHandler.attemptHandshake(this, this.draft, input);

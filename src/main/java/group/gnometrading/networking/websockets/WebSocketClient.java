@@ -37,7 +37,10 @@ public class WebSocketClient {
 
     public void connect() throws IOException {
         this.messageClient.connect();
-        this.messageClient.configureBlocking(false);
+    }
+
+    public void configureBlocking(final boolean blocking) throws IOException {
+        this.messageClient.configureBlocking(blocking);
     }
 
     private boolean pong() throws IOException {
