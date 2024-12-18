@@ -21,19 +21,16 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
     private final Draft draft;
     public final DataFrame frame;
 
-    public WebSocketMessageClient(
-            URI uri,
-            Draft draft
-    ) throws IOException {
-        this(uri, draft, GnomeSocketFactory.getDefault());
-    }
-
-    public WebSocketMessageClient(
+    WebSocketMessageClient(
             URI uri,
             Draft draft,
-            GnomeSocketFactory socketFactory
+            GnomeSocketFactory socketFactory,
+            int readBufferSize,
+            int writeBufferSize,
+            boolean backgroundReaderThread,
+            boolean backgroundWriterThread
     ) throws IOException {
-        super(parseURI(uri), socketFactory, DEFAULT_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
+        super(parseURI(uri), socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
         this.draft = draft;
         this.uri = uri;
         this.frame = this.draft.getDataFrame();

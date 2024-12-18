@@ -2,7 +2,6 @@ package group.gnometrading.networking.websockets;
 
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import group.gnometrading.networking.websockets.drafts.Draft;
-import group.gnometrading.networking.websockets.drafts.RFC6455;
 import group.gnometrading.networking.websockets.enums.Opcode;
 
 import java.io.IOException;
@@ -17,22 +16,18 @@ public class WebSocketClient {
     private final WebSocketResponse response;
     private final ByteBuffer body;
 
-    public WebSocketClient(final URI uri) throws IOException {
-        this(uri, new RFC6455());
-    }
-
-    public WebSocketClient(final URI uri, final Draft draft) throws IOException {
-        this(uri, draft, GnomeSocketFactory.getDefault());
-    }
-
-    public WebSocketClient(final URI uri, final GnomeSocketFactory socketFactory) throws IOException {
-        this(uri, new RFC6455(), socketFactory);
-    }
-
-    public WebSocketClient(final URI uri, final Draft draft, final GnomeSocketFactory socketFactory) throws IOException {
-        this.messageClient = new WebSocketMessageClient(uri, draft, socketFactory);
+    WebSocketClient(
+            URI uri,
+            Draft draft,
+            GnomeSocketFactory socketFactory,
+            int readBufferSize,
+            int writeBufferSize,
+            boolean backgroundReaderThread,
+            boolean backgroundWriterThread
+    ) throws IOException {
+        this.messageClient = new WebSocketMessageClient(uri, draft, socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
         this.response = new WebSocketResponse();
-        this.body = ByteBuffer.allocate(WebSocketMessageClient.DEFAULT_READ_BUFFER_SIZE);
+        this.body = ByteBuffer.allocate(readBufferSize);
     }
 
     public void connect() throws IOException {
