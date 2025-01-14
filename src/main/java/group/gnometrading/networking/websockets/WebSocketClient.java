@@ -16,7 +16,7 @@ public class WebSocketClient {
     private final WebSocketResponse response;
     private final ByteBuffer body;
 
-    WebSocketClient(
+    protected WebSocketClient(
             URI uri,
             Draft draft,
             GnomeSocketFactory socketFactory,
