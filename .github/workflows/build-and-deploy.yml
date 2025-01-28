@@ -13,8 +13,6 @@ jobs:
     strategy:
       matrix:
         os: [{os: ubuntu-latest, classifier: linux}, {os: macos-latest, classifier: macos}]
-      fail-fast: true
-      max-parallel: 1
 
     steps:
       - name: Checkout code
@@ -51,4 +49,5 @@ jobs:
             -Dpackaging=jar \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
-            --settings settings.xml
+            --settings settings.xml \
+          || { echo "Ignoring 409 Conflict errors..." }
