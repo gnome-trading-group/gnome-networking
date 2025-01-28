@@ -131,7 +131,7 @@
                         <configuration>
                             <target>
                                 <exec executable="cmake" dir="${jni.codePath}" failonerror="true">
-                                    <arg line=". -DNATIVE_LIBRARY_NAME=${jni.libraryName}" />
+                                    <arg line='. -DNATIVE_LIBRARY_NAME=${jni.libraryName} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC"' />
                                 </exec>
                                 <exec executable="make" dir="${jni.codePath}" failonerror="true">
                                     <arg line="VERBOSE=1" />
