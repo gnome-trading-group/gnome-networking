@@ -3,14 +3,13 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
 #include <iostream>
 
 #include "include/jlong_md.h"
 #include "include/jni_util.h"
 #include "include/net_util.h"
 #include "include/nio.h"
-#include "include/nio_util.h"
+#include "include/socket_util.h"
 
 #ifndef _Included_group_gnometrading_networking_sockets_NativeSocket
 #define _Included_group_gnometrading_networking_sockets_NativeSocket
@@ -127,11 +126,6 @@ Java_group_gnometrading_networking_sockets_NativeSocket_socket(JNIEnv *env,
     return fd;
 }
 
-#define CHECK_NULL(expr)  \
-    if (expr == NULL) {   \
-        return JNI_FALSE; \
-    }
-
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    connect0
@@ -144,9 +138,7 @@ Java_group_gnometrading_networking_sockets_NativeSocket_connect0(
     int sa_len = 0;
     int rv;
 
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, JNI_TRUE) !=
-        0) {
-        std::cout << "THROWN" << std::endl;
+    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, JNI_TRUE) != 0) {
         return IOS_THROWN;
     }
 
@@ -172,8 +164,7 @@ Java_group_gnometrading_networking_sockets_NativeSocket_close0(JNIEnv *env,
                                                                jobject,
                                                                jint fd) {
     if (fd != -1) {
-        int result =
-            close(fd);  // TODO: Should we use shutdown instead? For now no.
+        int result = close(fd);  // TODO: Should we use shutdown instead? For now no.
         if (result < 0) JNU_ThrowIOExceptionWithLastError(env, "Close failed");
     }
     return;
@@ -222,75 +213,6 @@ Java_group_gnometrading_networking_sockets_NativeSocket_configureBlocking0(
     JNIEnv *env, jobject, jint fd, jboolean blocking) {
     if (configureBlocking(fd, blocking) < 0)
         JNU_ThrowIOExceptionWithLastError(env, "Configure blocking failed");
-}
-
-static int configureBlocking(int fd, jboolean blocking) {
-    int flags = fcntl(fd, F_GETFL);
-    int newflags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
-
-    return (flags == newflags) ? 0 : fcntl(fd, F_SETFL, newflags);
-}
-
-static jint handleSocketErrorWithMessage(JNIEnv *env, jint errorValue,
-                                         const char *message) {
-    char *xn;
-    switch (errorValue) {
-        case EINPROGRESS: /* Non-blocking connect */
-            return 0;
-#ifdef EPROTO
-        case EPROTO:
-            xn = JNU_JAVANETPKG "ProtocolException";
-            break;
-#endif
-        case ECONNREFUSED:
-        case ETIMEDOUT:
-        case ENOTCONN:
-            xn = JNU_JAVANETPKG "ConnectException";
-            break;
-
-        case EHOSTUNREACH:
-            xn = JNU_JAVANETPKG "NoRouteToHostException";
-            break;
-        case EADDRINUSE: /* Fall through */
-        case EADDRNOTAVAIL:
-        case EACCES:
-            xn = JNU_JAVANETPKG "BindException";
-            break;
-        default:
-            xn = JNU_JAVANETPKG "SocketException";
-            break;
-    }
-    errno = errorValue;
-    if (message == NULL) {
-        JNU_ThrowByNameWithLastError(env, xn, "NioSocketError");
-    } else {
-        JNU_ThrowByNameWithMessageAndLastError(env, xn, message);
-    }
-    return IOS_THROWN;
-}
-
-jint handleSocketError(JNIEnv *env, jint errorValue) {
-    return handleSocketErrorWithMessage(env, errorValue, NULL);
-}
-
-jint convertReturnVal(JNIEnv *env, jint n, jboolean reading) {
-    if (n > 0) /* Number of bytes written */
-        return n;
-    else if (n == 0) {
-        if (reading) {
-            return IOS_EOF; /* EOF is -1 in javaland */
-        } else {
-            return 0;
-        }
-    } else if (errno == EAGAIN || errno == EWOULDBLOCK)
-        return IOS_UNAVAILABLE;
-    else if (errno == EINTR)
-        return IOS_INTERRUPTED;
-    else {
-        const char *msg = reading ? "Read failed" : "Write failed";
-        JNU_ThrowIOExceptionWithLastError(env, msg);
-        return IOS_THROWN;
-    }
 }
 
 #ifdef __cplusplus

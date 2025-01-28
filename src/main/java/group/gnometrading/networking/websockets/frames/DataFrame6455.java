@@ -165,4 +165,24 @@ public class DataFrame6455 implements DataFrame {
         requiredOctets += this.getPayloadLength();
         return this.limit < requiredOctets;
     }
+
+    @Override
+    public boolean hasCompleteHeader() {
+        int requiredOctets = 1;
+        if (this.limit <= requiredOctets) {
+            return false;
+        }
+
+        requiredOctets += this.getPayloadLengthOctets();
+        if (this.limit < requiredOctets) {
+            return false;
+        }
+
+        requiredOctets += this.masked() ? 4 : 0;
+        if (this.limit < requiredOctets) {
+            return false;
+        }
+
+        return true;
+    }
 }

@@ -14,6 +14,7 @@ message(STATUS "Using Java home: ${JAVA_HOME}")
 find_package(JNI REQUIRED)
 include_directories(${JNI_INCLUDE_DIRS})
 include_directories(${JNI_INCLUDE_DIRS2})
+add_subdirectory(boringssl)
 
 file(GLOB HEADER_FILES CONFIGURE_DEPENDS "include/*.h")
 message(STATUS ${HEADER_FILES})
@@ -25,5 +26,6 @@ add_library(${NATIVE_LIBRARY_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(
 ${NATIVE_LIBRARY_NAME}
     -L${JAVA_HOME}/lib/ -L${JAVA_HOME}/lib/server -L${JAVA_HOME}/jre/lib -L${JAVA_HOME}/jre/lib/server
-    -ljava -lnio -lnet
+    -ljava -lnio -lnet ssl crypto
 )
+target_include_directories(${NATIVE_LIBRARY_NAME} PRIVATE boringssl/include)

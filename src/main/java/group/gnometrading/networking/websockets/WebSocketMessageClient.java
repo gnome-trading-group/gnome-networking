@@ -66,6 +66,9 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         if (complete) {
             // Drafts do not consume the bytes in the buffer. Maybe fix that in the future?
             this.readBuffer.position(this.readBuffer.position() + this.frame.length());
+        } else if (this.frame.hasCompleteHeader() && this.readBuffer.capacity() < this.frame.length()) {
+            throw new RuntimeException("Read buffer overflowed. Capacity bytes " + this.readBuffer.capacity() +
+                    " and needed " + this.frame.length() + " bytes");
         }
         return complete;
     }

@@ -31,6 +31,11 @@ public interface DataFrame {
      */
     boolean isIncomplete();
 
+    /**
+     * @return true if the frame has the entire header but the body may or may not be present
+     */
+    boolean hasCompleteHeader();
+
 
     /**
      * @return true if the message frame is a fragment to be followed with more frames
