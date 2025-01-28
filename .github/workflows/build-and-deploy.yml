@@ -47,7 +47,9 @@ jobs:
             -Dclassifier=${{ matrix.os.classifier }} \
             -DgeneratePom=false \
             -Dpackaging=jar \
+            -DuniqueVersion=false \
             -DrepositoryId=github \
             -Durl=https://maven.pkg.github.com/gnome-trading-group/gnome-networking \
-            --settings settings.xml \
-          || { echo "Ignoring 409 Conflict errors..." }
+            --settings settings.xml || {
+              echo "409 Conflict detected. Ignoring the error and continuing...";
+            }
