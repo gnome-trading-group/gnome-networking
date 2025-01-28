@@ -12,7 +12,9 @@ jobs:
       packages: write
     strategy:
       matrix:
-        os: [{os: macos-latest, classifier: macos}, {os: ubuntu-latest, classifier: linux}]
+        os: [{os: ubuntu-latest, classifier: linux}, {os: macos-latest, classifier: macos}]
+      fail-fast: true
+      max-parallel: 1
 
     steps:
       - name: Checkout code
