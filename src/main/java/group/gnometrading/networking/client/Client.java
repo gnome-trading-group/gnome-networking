@@ -24,4 +24,6 @@ public interface Client extends AutoCloseable {
     ByteBuffer getWriteBuffer();
 
     ByteBuffer getReadBuffer();
+
+    void clearBuffers();
 }

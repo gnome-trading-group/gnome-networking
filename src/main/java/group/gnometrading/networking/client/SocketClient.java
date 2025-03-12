@@ -21,21 +21,9 @@ public class SocketClient implements Client {
             InetSocketAddress remoteAddress,
             GnomeSocketFactory factory,
             int readBufferSize,
-            int writeBufferSize,
-            boolean backgroundReaderThread,
-            boolean backgroundWriterThread
+            int writeBufferSize
     ) throws IOException {
         this.socket = factory.createSocket(remoteAddress);
-        // TODO: Configure the socket via a Builder pattern
-
-        if (backgroundReaderThread) {
-            throw new UnsupportedOperationException("Not yet implemented");
-        }
-
-        if (backgroundWriterThread) {
-            throw new UnsupportedOperationException("Not yet implemented");
-        }
-
         this.readBuffer = ByteBuffer.allocateDirect(readBufferSize);
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
     }
@@ -113,5 +101,11 @@ public class SocketClient implements Client {
     @Override
     public ByteBuffer getReadBuffer() {
         return this.readBuffer;
+    }
+
+    @Override
+    public void clearBuffers() {
+        this.readBuffer.clear();
+        this.writeBuffer.clear();
     }
 }

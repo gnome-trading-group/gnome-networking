@@ -21,11 +21,9 @@ public class WebSocketClient {
             Draft draft,
             GnomeSocketFactory socketFactory,
             int readBufferSize,
-            int writeBufferSize,
-            boolean backgroundReaderThread,
-            boolean backgroundWriterThread
+            int writeBufferSize
     ) throws IOException {
-        this.messageClient = new WebSocketMessageClient(uri, draft, socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
+        this.messageClient = new WebSocketMessageClient(uri, draft, socketFactory, readBufferSize, writeBufferSize);
         this.response = new WebSocketResponse();
         this.body = ByteBuffer.allocate(readBufferSize);
     }
@@ -80,6 +78,10 @@ public class WebSocketClient {
         }
 
         return this.response.update(true, opcode, this.body, false);
+    }
+
+    public void reset() {
+        this.messageClient.clearBuffers();
     }
 
 }

@@ -26,11 +26,9 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
             Draft draft,
             GnomeSocketFactory socketFactory,
             int readBufferSize,
-            int writeBufferSize,
-            boolean backgroundReaderThread,
-            boolean backgroundWriterThread
+            int writeBufferSize
     ) throws IOException {
-        super(parseURI(uri), socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
+        super(parseURI(uri), socketFactory, readBufferSize, writeBufferSize);
         this.draft = draft;
         this.uri = uri;
         this.frame = this.draft.getDataFrame();

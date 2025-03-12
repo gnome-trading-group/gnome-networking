@@ -20,7 +20,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     private final String host;
 
     public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host) throws IOException {
-        super(parseURL(host, parsePort(protocol)), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE, false, false);
+        super(parseURL(host, parsePort(protocol)), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE);
         this.host = host;
         this.httpDecoder = new HTTPDecoder();
         this.httpEncoder = new HTTPEncoder();

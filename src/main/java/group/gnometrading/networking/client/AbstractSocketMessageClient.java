@@ -8,8 +8,8 @@ import java.net.InetSocketAddress;
 public abstract class AbstractSocketMessageClient extends SocketClient implements MessageClient {
 
 
-    protected AbstractSocketMessageClient(InetSocketAddress remoteAddress, GnomeSocketFactory factory, int readBufferSize, int writeBufferSize, boolean backgroundReaderThread, boolean backgroundWriterThread) throws IOException {
-        super(remoteAddress, factory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
+    protected AbstractSocketMessageClient(InetSocketAddress remoteAddress, GnomeSocketFactory factory, int readBufferSize, int writeBufferSize) throws IOException {
+        super(remoteAddress, factory, readBufferSize, writeBufferSize);
     }
 
     @Override

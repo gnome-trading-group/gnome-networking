@@ -12,8 +12,6 @@ public class SocketClientBuilder /*implements Builder<SocketClient>*/ {
     private GnomeSocketFactory socketFactory = GnomeSocketFactory.getDefault();
     private int readBufferSize = SocketClient.DEFAULT_READ_BUFFER_SIZE;
     private int writeBufferSize = SocketClient.DEFAULT_WRITE_BUFFER_SIZE;
-    private boolean backgroundReaderThread = false;
-    private boolean backgroundWriterThread = false;
 
     public SocketClientBuilder withAddress(InetSocketAddress address) {
         this.address = address;
@@ -35,22 +33,10 @@ public class SocketClientBuilder /*implements Builder<SocketClient>*/ {
         return this;
     }
 
-
-    public SocketClientBuilder withBackgroundReaderThread(boolean backgroundReaderThread) {
-        this.backgroundReaderThread = backgroundReaderThread;
-        return this;
-    }
-
-
-    public SocketClientBuilder withBackgroundWriterThread(boolean backgroundWriterThread) {
-        this.backgroundWriterThread = backgroundWriterThread;
-        return this;
-    }
-
     public SocketClient build() throws IOException {
         if (address == null) {
             throw new IllegalArgumentException("address must not be null");
         }
-        return new SocketClient(address, socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
+        return new SocketClient(address, socketFactory, readBufferSize, writeBufferSize);
     }
 }

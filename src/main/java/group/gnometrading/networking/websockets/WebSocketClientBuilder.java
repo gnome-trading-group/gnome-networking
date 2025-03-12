@@ -15,8 +15,6 @@ public class WebSocketClientBuilder {
     private GnomeSocketFactory socketFactory = GnomeSocketFactory.getDefault();
     private int readBufferSize = SocketClient.DEFAULT_READ_BUFFER_SIZE;
     private int writeBufferSize = SocketClient.DEFAULT_WRITE_BUFFER_SIZE;
-    private boolean backgroundReaderThread = false;
-    private boolean backgroundWriterThread = false;
 
     public WebSocketClientBuilder withURI(URI uri) {
         this.uri = uri;
@@ -43,24 +41,12 @@ public class WebSocketClientBuilder {
         return this;
     }
 
-
-    public WebSocketClientBuilder withBackgroundReaderThread(boolean backgroundReaderThread) {
-        this.backgroundReaderThread = backgroundReaderThread;
-        return this;
-    }
-
-
-    public WebSocketClientBuilder withBackgroundWriterThread(boolean backgroundWriterThread) {
-        this.backgroundWriterThread = backgroundWriterThread;
-        return this;
-    }
-
     public WebSocketClient build() throws IOException {
         if (uri == null) {
             throw new IllegalArgumentException("uri must not be null");
         }
 
-        return new WebSocketClient(uri, draft, socketFactory, readBufferSize, writeBufferSize, backgroundReaderThread, backgroundWriterThread);
+        return new WebSocketClient(uri, draft, socketFactory, readBufferSize, writeBufferSize);
     }
 
 }
