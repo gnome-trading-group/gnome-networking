@@ -71,15 +71,22 @@ public class SocketClient implements Client {
         }
 
         len = Math.min(len, this.readBuffer.remaining());
-        int bytes = this.socket.read(this.readBuffer, len);
+        int bytes = normalize(this.socket.read(this.readBuffer, len));
+        if (bytes < 0) {
+            return bytes;
+        }
 
         if (this.readBuffer.position() > 0) {
             this.readBuffer.flip();
         } else { // If position == 0, we read nothing on the wire
-            this.readBuffer.limit(bytes < 0 ? 0 : bytes); // avoid Math.max stackframe?
+            this.readBuffer.limit(bytes);
         }
 
-        return IOStatus.normalize(bytes);
+        return this.readBuffer.remaining();
+    }
+
+    private static int normalize(final int n) {
+        return (n == -2 || n == -3) ? 0 : n;
     }
 
 
