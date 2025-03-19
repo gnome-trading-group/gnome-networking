@@ -25,6 +25,8 @@ public class SocketClient implements Client {
         this.socket = factory.createSocket(remoteAddress);
         this.readBuffer = ByteBuffer.allocateDirect(readBufferSize);
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
+
+        this.readBuffer.limit(0); // Read buffer should be "empty" to begin
     }
 
     @Override

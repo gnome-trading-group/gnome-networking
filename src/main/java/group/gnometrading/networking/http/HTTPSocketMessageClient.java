@@ -24,7 +24,6 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         this.host = host;
         this.httpDecoder = new HTTPDecoder();
         this.httpEncoder = new HTTPEncoder();
-//        this.socket.configureBlocking(true);
     }
 
     private static int parsePort(final HTTPProtocol protocol) {
