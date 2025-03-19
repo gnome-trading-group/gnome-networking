@@ -2,7 +2,6 @@ package group.gnometrading.networking.client;
 
 import group.gnometrading.networking.sockets.GnomeSocket;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
-import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -52,7 +51,7 @@ public class SocketClient implements Client {
             this.writeBuffer.limit(this.writeBuffer.capacity());
         }
 
-        return IOStatus.normalize(bytes);
+        return normalize(bytes);
     }
 
 

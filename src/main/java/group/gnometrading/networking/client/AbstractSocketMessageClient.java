@@ -14,18 +14,32 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
 
     @Override
     public int readMessage() throws IOException {
+        if (checkMessage()) { // Early exit if there's already a message to be read
+            return 1;
+        }
+
         int bytes = this.read();
         if (bytes < 0) {
             return bytes;
         }
+
+        return checkMessage() ? 1 : 0;
+    }
+
+    private boolean checkMessage() {
         this.readBuffer.mark();
         final boolean complete = isCompleteMessage();
         if (!complete) {
             this.readBuffer.reset();
-            return 0;
         }
-        return 1;
+        return complete;
     }
 
+    /**
+     * Check whether the current read buffer has a complete message. The read buffer's position
+     * should advance to the end of the message if it is present.
+     *
+     * @return true if there's a complete message
+     */
     public abstract boolean isCompleteMessage();
 }
