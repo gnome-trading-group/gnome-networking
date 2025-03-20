@@ -13,7 +13,7 @@ public class SocketClient implements Client {
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 1 << 11; // 2kb
 
     protected final GnomeSocket socket;
-    protected final ByteBuffer readBuffer;
+    public final ByteBuffer readBuffer;
     protected final ByteBuffer writeBuffer;
 
     protected SocketClient(
@@ -26,7 +26,7 @@ public class SocketClient implements Client {
         this.readBuffer = ByteBuffer.allocateDirect(readBufferSize);
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
 
-        this.readBuffer.limit(0); // Read buffer should be "empty" to begin
+        this.clearBuffers();
     }
 
     @Override
@@ -114,6 +114,7 @@ public class SocketClient implements Client {
     @Override
     public void clearBuffers() {
         this.readBuffer.clear();
+        this.readBuffer.limit(0); // Read buffer should be "empty" to begin
         this.writeBuffer.clear();
     }
 }

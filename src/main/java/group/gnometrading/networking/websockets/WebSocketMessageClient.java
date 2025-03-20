@@ -12,7 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 
-class WebSocketMessageClient extends AbstractSocketMessageClient {
+public class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     public static final int DEFAULT_PORT = 80;
     public static final int DEFAULT_WSS_PORT = 443;
@@ -57,11 +57,16 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         return IOStatus.normalize(this.socket.write(this.writeBuffer));
     }
 
+    public void print() {
+        System.out.println(this.readBuffer);
+    }
+
     @Override
     public boolean isCompleteMessage() {
         this.frame.wrap(this.readBuffer);
         final boolean complete = !this.frame.isIncomplete();
         if (complete) {
+            this.print();
             // Drafts do not consume the bytes in the buffer. Maybe fix that in the future?
             this.readBuffer.position(this.readBuffer.position() + this.frame.length());
         } else if (this.frame.hasCompleteHeader() && this.readBuffer.capacity() < this.frame.length()) {

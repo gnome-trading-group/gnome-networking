@@ -12,7 +12,7 @@ public class WebSocketClient {
 
     private static final ByteBuffer EMPTY = ByteBuffer.allocate(0);
 
-    private final WebSocketMessageClient messageClient;
+    public final WebSocketMessageClient messageClient;
     private final WebSocketResponse response;
     private final ByteBuffer body;
 
