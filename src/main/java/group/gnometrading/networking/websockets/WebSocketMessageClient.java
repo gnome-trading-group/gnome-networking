@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 public class WebSocketMessageClient extends AbstractSocketMessageClient {
 
@@ -59,6 +60,31 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     public void print() {
         System.out.println(this.readBuffer);
+        if (this.frame.length() > 10_000) {
+            int originalPos = this.readBuffer.position();
+            System.out.println(StandardCharsets.UTF_8.decode(this.readBuffer));
+            this.readBuffer.position(originalPos);
+            System.out.println(toHex(this.readBuffer));
+        }
+    }
+
+    public static String toHex(ByteBuffer buffer) {
+        if (buffer == null) {
+            return null;
+        }
+
+        StringBuilder hexString = new StringBuilder();
+        int position = buffer.position();
+
+        while (buffer.hasRemaining()) {
+            byte b = buffer.get();
+            hexString.append(String.format("%02x", b));
+            if (buffer.hasRemaining()) {
+                hexString.append(" ");
+            }
+        }
+        buffer.position(position);
+        return hexString.toString();
     }
 
     @Override
