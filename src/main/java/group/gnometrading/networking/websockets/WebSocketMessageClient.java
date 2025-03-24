@@ -58,9 +58,9 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
         return IOStatus.normalize(this.socket.write(this.writeBuffer));
     }
 
-    public void print() {
+    public void print(boolean force) {
         System.out.println(this.readBuffer);
-        if (this.frame.length() > 10_000) {
+        if (force || this.frame.length() > 10_000) {
             int originalPos = this.readBuffer.position();
             System.out.println(StandardCharsets.UTF_8.decode(this.readBuffer));
             this.readBuffer.position(originalPos);
@@ -92,7 +92,10 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
         this.frame.wrap(this.readBuffer);
         final boolean complete = !this.frame.isIncomplete();
         if (complete) {
-            this.print();
+            this.print(false);
+            if (this.frame.length() < 0) {
+                this.print(true);
+            }
             // Drafts do not consume the bytes in the buffer. Maybe fix that in the future?
             this.readBuffer.position(this.readBuffer.position() + this.frame.length());
         } else if (this.frame.hasCompleteHeader() && this.readBuffer.capacity() < this.frame.length()) {
