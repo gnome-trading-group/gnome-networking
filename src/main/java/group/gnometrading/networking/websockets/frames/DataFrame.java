@@ -54,12 +54,6 @@ public interface DataFrame {
      */
     Opcode getOpcode();
 
-
-    /**
-     * @return a read-only view of payload data in a ByteBuffer.
-     */
-    ByteBuffer getPayloadData();
-
     /**
      * Copy the payload data into a ByteBuffer.
      */

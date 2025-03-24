@@ -30,6 +30,12 @@ public class DataFrame6455 implements DataFrame {
         return Opcode.fromByte(this.buffer.get(offset));
     }
 
+    private void writeInt(int input, int numBytes) {
+        for (int i = numBytes - 1; i >= 0; i--) {
+            buffer.put((byte) (input >>> (i * 8)));
+        }
+    }
+
     @Override
     public void encode(Opcode opcode, ByteBuffer payload) {
         // No support for fragmented frames
@@ -41,10 +47,10 @@ public class DataFrame6455 implements DataFrame {
         int payloadLength = payload.remaining();
         if (payloadLength > (2 << 15)) {
             this.buffer.put((byte) (mask | 127));
-            this.buffer.putLong(payloadLength);
+            writeInt(payloadLength, 8);
         } else if (payloadLength > 125) {
             this.buffer.put((byte) (mask | 126));
-            this.buffer.putShort((short) payloadLength);
+            writeInt(payloadLength, 2);
         } else {
             this.buffer.put((byte) (mask | payloadLength));
         }
@@ -64,7 +70,7 @@ public class DataFrame6455 implements DataFrame {
         return (this.buffer.get(offset + 1) & 0b10000000) == 0b10000000;
     }
 
-    public int getPayloadLengthOctets() {
+    private int getPayloadLengthOctets() {
         int length = this.buffer.get(offset + 1) & 0b01111111;
         if (length == 126) {
             return 3;
@@ -75,14 +81,22 @@ public class DataFrame6455 implements DataFrame {
         }
     }
 
-    public int getPayloadLength() {
+    private int readInt(int idx, int numBytes) {
+        int value = 0;
+        for (int i = 0; i < numBytes; i++) {
+            value = (value << 8) | (buffer.get(idx + i) & 0xFF);
+        }
+        return value;
+    }
+
+    private int getPayloadLength() {
         int length = this.buffer.get(offset + 1) & 0b01111111;
         if (length == 126) {
-            return this.buffer.getShort(offset + 2);
+            return readInt(offset + 2, 2);
         } else if (length == 127) {
             // if this is lossy, it deserves to be. if you're sending me a packet > 2^32 bytes... no
             // but if anyone ends up ever debugging this code and the issue turns out to be from downcasting this, sorry.
-            return (int) this.buffer.getLong(offset + 2);
+            return readInt(offset + 2, 8);
         }
         return length;
     }
@@ -90,25 +104,6 @@ public class DataFrame6455 implements DataFrame {
     private int getMaskingKey() {
         int index = offset + 1 + this.getPayloadLengthOctets();
         return this.buffer.getInt(index);
-    }
-
-    @Override
-    public ByteBuffer getPayloadData() {
-        int index = offset + 1 + this.getPayloadLengthOctets() + (this.masked() ? 4 : 0);
-        int payloadLength = this.getPayloadLength();
-
-        if (this.masked()) {
-            int key = this.getMaskingKey();
-            for (int i = 0; i < payloadLength; i++) {
-                byte mask = (byte) ((key >> (8 * (i % 4))) & 0xFF); // not ideal
-                this.buffer.put(i + index, (byte) (this.buffer.get(i + index) ^ mask));
-            }
-        }
-
-        this.buffer.position(index);
-        this.buffer.limit(index + payloadLength);
-
-        return this.buffer;
     }
 
     @Override
