@@ -13,7 +13,7 @@ public class SocketClient implements Client {
     public static final int DEFAULT_WRITE_BUFFER_SIZE = 1 << 11; // 2kb
 
     protected final GnomeSocket socket;
-    public final ByteBuffer readBuffer;
+    protected final ByteBuffer readBuffer;
     protected final ByteBuffer writeBuffer;
 
     protected SocketClient(

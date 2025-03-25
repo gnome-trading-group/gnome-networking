@@ -11,9 +11,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
-public class WebSocketMessageClient extends AbstractSocketMessageClient {
+class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     public static final int DEFAULT_PORT = 80;
     public static final int DEFAULT_WSS_PORT = 443;
@@ -58,45 +57,11 @@ public class WebSocketMessageClient extends AbstractSocketMessageClient {
         return IOStatus.normalize(this.socket.write(this.writeBuffer));
     }
 
-    public void print(boolean force) {
-        System.out.println(this.readBuffer);
-        if (force || this.frame.length() > 10_000) {
-            int originalPos = this.readBuffer.position();
-            System.out.println(StandardCharsets.UTF_8.decode(this.readBuffer));
-            this.readBuffer.position(originalPos);
-            System.out.println(toHex(this.readBuffer));
-        }
-    }
-
-    public static String toHex(ByteBuffer buffer) {
-        if (buffer == null) {
-            return null;
-        }
-
-        StringBuilder hexString = new StringBuilder();
-        int position = buffer.position();
-
-        while (buffer.hasRemaining()) {
-            byte b = buffer.get();
-            hexString.append(String.format("%02x", b));
-            if (buffer.hasRemaining()) {
-                hexString.append(" ");
-            }
-        }
-        buffer.position(position);
-        return hexString.toString();
-    }
-
     @Override
     public boolean isCompleteMessage() {
         this.frame.wrap(this.readBuffer);
         final boolean complete = !this.frame.isIncomplete();
         if (complete) {
-            this.print(false);
-            if (this.frame.length() < 0) {
-                this.print(true);
-            }
-            // Drafts do not consume the bytes in the buffer. Maybe fix that in the future?
             this.readBuffer.position(this.readBuffer.position() + this.frame.length());
         } else if (this.frame.hasCompleteHeader() && this.readBuffer.capacity() < this.frame.length()) {
             throw new RuntimeException("Read buffer overflowed. Capacity bytes " + this.readBuffer.capacity() +
