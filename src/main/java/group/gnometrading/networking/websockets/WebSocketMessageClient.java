@@ -5,7 +5,6 @@ import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import group.gnometrading.networking.websockets.drafts.Draft;
 import group.gnometrading.networking.websockets.enums.Opcode;
 import group.gnometrading.networking.websockets.frames.DataFrame;
-import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -54,7 +53,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         this.frame.wrap(this.writeBuffer).encode(opcode, buffer);
         this.writeBuffer.flip();
 
-        return IOStatus.normalize(this.socket.write(this.writeBuffer));
+        return normalize(this.socket.write(this.writeBuffer));
     }
 
     @Override

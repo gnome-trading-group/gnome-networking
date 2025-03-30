@@ -5,17 +5,15 @@ import java.nio.ByteBuffer;
 
 public interface GnomeSocket extends AutoCloseable {
 
-    default void connectNonBlocking(long timeoutInMillis) throws IOException {
-        throw new UnsupportedOperationException("Non-blocking connection is not yet implemented");
-    }
-
-    void connectBlocking() throws IOException;
+    void connect() throws IOException;
 
     void close() throws IOException;
 
     boolean isConnected();
 
-    boolean isClosed();
+    default boolean isClosed() {
+        return !isConnected();
+    }
 
     int read(ByteBuffer directBuffer, int len) throws IOException;
 
@@ -27,6 +25,10 @@ public interface GnomeSocket extends AutoCloseable {
 
     default int write(ByteBuffer directBuffer) throws IOException {
         return write(directBuffer, directBuffer.remaining());
+    }
+
+    default void reconnect() throws IOException {
+        throw new UnsupportedOperationException("Socket does not support reconnecting");
     }
 
     default void configureBlocking(boolean blocking) throws IOException {

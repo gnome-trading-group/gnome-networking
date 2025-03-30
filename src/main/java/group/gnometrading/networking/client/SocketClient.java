@@ -31,7 +31,7 @@ public class SocketClient implements Client {
 
     @Override
     public void connect() throws IOException {
-        this.socket.connectBlocking();
+        this.socket.connect();
     }
 
     @Override
@@ -86,7 +86,7 @@ public class SocketClient implements Client {
         return this.readBuffer.remaining();
     }
 
-    private static int normalize(final int n) {
+    protected static int normalize(final int n) {
         return (n == -2 || n == -3) ? 0 : n;
     }
 
@@ -116,5 +116,10 @@ public class SocketClient implements Client {
         this.readBuffer.clear();
         this.readBuffer.limit(0); // Read buffer should be "empty" to begin
         this.writeBuffer.clear();
+    }
+
+    @Override
+    public void reconnect() throws IOException {
+        this.socket.reconnect();
     }
 }

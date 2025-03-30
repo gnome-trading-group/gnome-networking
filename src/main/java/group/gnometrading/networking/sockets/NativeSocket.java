@@ -22,7 +22,7 @@ public class NativeSocket implements GnomeSocket {
         NativeSocket.init();
     }
 
-    private final int fd;
+    private int fd;
     private final InetSocketAddress remoteAddress;
     private SocketState socketState;
 
@@ -31,7 +31,6 @@ public class NativeSocket implements GnomeSocket {
             throw new UnknownHostException("Unknown host: " + remoteAddress.getHostName());
         }
         this.remoteAddress = remoteAddress;
-        this.fd = this.socket(true, true); // TODO: Support UDP
         this.socketState = SocketState.UNCONNECTED;
     }
 
@@ -40,11 +39,12 @@ public class NativeSocket implements GnomeSocket {
     private native int socket(boolean stream, boolean reuse) throws IOException;
 
     @Override
-    public void connectBlocking() throws IOException {
+    public void connect() throws IOException {
         InetAddress address = this.remoteAddress.getAddress();
         if (address.isAnyLocalAddress()) {
             address = InetAddress.getLocalHost();
         }
+        this.fd = this.socket(true, true); // TODO: Support UDP
         if (this.connect0(this.fd, address, this.remoteAddress.getPort()) > 0) {
             this.socketState = SocketState.CONNECTED;
         } else {
@@ -56,7 +56,7 @@ public class NativeSocket implements GnomeSocket {
 
     @Override
     public void close() throws IOException {
-        this.socketState = SocketState.CLOSED;
+        this.socketState = SocketState.UNCONNECTED;
         close0(this.fd);
     }
 
@@ -65,11 +65,6 @@ public class NativeSocket implements GnomeSocket {
     @Override
     public boolean isConnected() {
         return this.socketState == SocketState.CONNECTED;
-    }
-
-    @Override
-    public boolean isClosed() {
-        return this.socketState == SocketState.CLOSED;
     }
 
     @Override
@@ -106,6 +101,12 @@ public class NativeSocket implements GnomeSocket {
     public void configureBlocking(boolean blocking) throws IOException {
         ensureConnected();
         configureBlocking0(fd, blocking);
+    }
+
+    @Override
+    public void reconnect() throws IOException {
+        this.close();
+        this.connect();
     }
 
     private native void configureBlocking0(int fd, boolean blocking) throws IOException;

@@ -32,6 +32,12 @@ public class WebSocketClient {
         this.messageClient.connect();
     }
 
+    public void reconnect() throws IOException {
+        this.reset();
+        this.messageClient.reconnect();
+        this.connect(); // Resends WebSocket handshake
+    }
+
     public void configureBlocking(final boolean blocking) throws IOException {
         this.messageClient.configureBlocking(blocking);
     }

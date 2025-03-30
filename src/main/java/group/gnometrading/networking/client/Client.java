@@ -26,4 +26,6 @@ public interface Client extends AutoCloseable {
     ByteBuffer getReadBuffer();
 
     void clearBuffers();
+
+    void reconnect() throws IOException;
 }

@@ -31,7 +31,7 @@ public class NetSocket implements GnomeSocket {
     }
 
     @Override
-    public void connectBlocking() throws IOException {
+    public void connect() throws IOException {
         this.socket.connect(remoteAddress);
     }
 
