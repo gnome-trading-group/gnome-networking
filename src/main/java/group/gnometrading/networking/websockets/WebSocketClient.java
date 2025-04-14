@@ -32,6 +32,10 @@ public class WebSocketClient {
         this.messageClient.connect();
     }
 
+    public void close() throws Exception {
+        this.messageClient.close();
+    }
+
     public void reconnect() throws IOException {
         this.reset();
         this.messageClient.reconnect();
