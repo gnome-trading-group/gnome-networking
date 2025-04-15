@@ -119,7 +119,9 @@ public class SocketClient implements Client {
     }
 
     @Override
-    public void reconnect() throws IOException {
-        this.socket.reconnect();
+    public void reconnect() throws Exception {
+        this.close();
+        this.clearBuffers();
+        this.connect();
     }
 }

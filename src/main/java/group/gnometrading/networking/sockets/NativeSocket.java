@@ -103,12 +103,6 @@ public class NativeSocket implements GnomeSocket {
         configureBlocking0(fd, blocking);
     }
 
-    @Override
-    public void reconnect() throws IOException {
-        this.close();
-        this.connect();
-    }
-
     private native void configureBlocking0(int fd, boolean blocking) throws IOException;
 
     private void ensureConnected() throws SocketException {

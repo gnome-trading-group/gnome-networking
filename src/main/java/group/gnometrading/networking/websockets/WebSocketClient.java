@@ -36,8 +36,7 @@ public class WebSocketClient {
         this.messageClient.close();
     }
 
-    public void reconnect() throws IOException {
-        this.reset();
+    public void reconnect() throws Exception {
         this.messageClient.reconnect();
         this.connect(); // Resends WebSocket handshake
     }

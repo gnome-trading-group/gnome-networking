@@ -27,10 +27,6 @@ public interface GnomeSocket extends AutoCloseable {
         return write(directBuffer, directBuffer.remaining());
     }
 
-    default void reconnect() throws IOException {
-        throw new UnsupportedOperationException("Socket does not support reconnecting");
-    }
-
     default void configureBlocking(boolean blocking) throws IOException {
         throw new UnsupportedOperationException("Socket does not support non-blocking");
     }

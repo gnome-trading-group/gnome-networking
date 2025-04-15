@@ -103,12 +103,6 @@ public class NativeSSLSocket implements GnomeSocket {
         configureBlocking0(this.handle, blocking);
     }
 
-    @Override
-    public void reconnect() throws IOException {
-        this.close();
-        this.connect();
-    }
-
     private native void configureBlocking0(long handle, boolean blocking) throws IOException;
 
     private void ensureConnected() throws SocketException {
