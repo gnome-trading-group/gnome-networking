@@ -37,13 +37,8 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         int port = uri.getPort() == -1 ? (uri.getScheme().equals("wss") ? DEFAULT_WSS_PORT : DEFAULT_PORT) : uri.getPort();
         return new InetSocketAddress(uri.getHost(), port);
     }
-
-    @Override
-    public void connect() throws IOException {
-        if (!this.socket.isConnected()) { // Some sockets auto-connect (NetSockets)
-            super.connect();
-        }
-
+    
+    protected void sendHandshake() {
         HandshakeInput input = new HandshakeInput(this.uri);
         HandshakeHandler.attemptHandshake(this, this.draft, input);
     }

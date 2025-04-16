@@ -155,7 +155,7 @@ JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSock
  * Signature: (ILjava/net/InetAddress;I)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_connect0(
-    JNIEnv *env, jobject cl, jlong handle, jobject iao, jint port
+    JNIEnv *env, jobject cl, jlong handle, jobject iao, jint port, jstring hostname
 ) {
     SSLSocketState *state = (SSLSocketState *)handle;
     SOCKETADDRESS sa;
@@ -182,10 +182,15 @@ JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
     }
 
     SSL_set_fd(state->ssl, state->socket_fd);
+    const char *nativeString = env->GetStringUTFChars(hostname, 0);
+    SSL_set_tlsext_host_name(state->ssl, nativeString);
+
     if (SSL_connect(state->ssl) <= 0) {
         ERR_print_errors_fp(stderr);
+        env->ReleaseStringUTFChars(hostname, nativeString);
         return handleSocketErrorWithMessage(env, -1, "SSL handshake failed");
     }
+    env->ReleaseStringUTFChars(hostname, nativeString);
 
     return 1;
 }

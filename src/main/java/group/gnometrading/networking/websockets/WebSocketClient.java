@@ -30,6 +30,7 @@ public class WebSocketClient {
 
     public void connect() throws IOException {
         this.messageClient.connect();
+        this.messageClient.sendHandshake();
     }
 
     public void close() throws Exception {
@@ -38,7 +39,7 @@ public class WebSocketClient {
 
     public void reconnect() throws Exception {
         this.messageClient.reconnect();
-        this.connect(); // Resends WebSocket handshake
+        this.messageClient.sendHandshake();
     }
 
     public void configureBlocking(final boolean blocking) throws IOException {

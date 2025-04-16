@@ -26,10 +26,10 @@ JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSock
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
  * Method:    connect0
- * Signature: (JLjava/net/InetAddress;I)I
+ * Signature: (JLjava/net/InetAddress;ILjava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_connect0
-  (JNIEnv *, jobject, jlong, jobject, jint);
+  (JNIEnv *, jobject, jlong, jobject, jint, jstring);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket

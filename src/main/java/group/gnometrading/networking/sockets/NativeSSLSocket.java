@@ -45,14 +45,14 @@ public class NativeSSLSocket implements GnomeSocket {
             address = InetAddress.getLocalHost();
         }
         this.handle = this.socket(true, true); // TODO: Support UDP
-        if (this.connect0(this.handle, address, this.remoteAddress.getPort()) > 0) {
+        if (this.connect0(this.handle, address, this.remoteAddress.getPort(), address.getHostName()) > 0) {
             this.socketState = SocketState.CONNECTED;
         } else {
             throw new SocketException("Unable to connect");
         }
     }
 
-    private native int connect0(long handle, InetAddress remote, int remoteReport) throws IOException;
+    private native int connect0(long handle, InetAddress remote, int remoteReport, String hostname) throws IOException;
 
     @Override
     public void close() throws IOException {
