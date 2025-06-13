@@ -9,15 +9,9 @@ import java.net.URI;
 
 public abstract class GnomeSocketFactory {
 
-    private static GnomeSocketFactory DEFAULT;
+    private static final GnomeSocketFactory DEFAULT = new NativeSocketFactory();
 
     public static GnomeSocketFactory getDefault() {
-        synchronized(GnomeSocketFactory.class) {
-            if (DEFAULT == null) {
-                DEFAULT = new NativeSocketFactory();
-            }
-        }
-
         return DEFAULT;
     }
 
@@ -38,6 +32,4 @@ public abstract class GnomeSocketFactory {
     }
 
     public abstract GnomeSocket createSocket(InetSocketAddress remoteAddress) throws IOException;
-
-    // TODO: Add constructors for binding to a port
 }

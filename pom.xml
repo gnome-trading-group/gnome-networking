@@ -6,7 +6,7 @@
     <artifactId>gnome-networking</artifactId>
     <!-- not using Maven release as we need both MacOS and Ubuntu builds -->
     <!-- update this manually... barbaric, I know -->
-    <version>1.0.53</version>
+    <version>1.0.54</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -53,6 +53,18 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.14.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

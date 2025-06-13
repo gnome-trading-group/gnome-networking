@@ -1,5 +1,6 @@
 package group.gnometrading.networking.websockets.drafts;
 
+import group.gnometrading.annotations.VisibleForTesting;
 import group.gnometrading.networking.websockets.HandshakeInput;
 import group.gnometrading.networking.websockets.enums.HandshakeState;
 import group.gnometrading.networking.websockets.frames.DataFrame;
@@ -14,11 +15,17 @@ import java.util.random.RandomGenerator;
 public abstract class Draft {
 
     // TODO: What's the latency on this?
-    protected final RandomGenerator secureRandom = new SecureRandom();
+    protected final RandomGenerator secureRandom;
     private final DataFrame dataFrame;
 
     public Draft(DataFrame dataFrame) {
+        this(dataFrame, new SecureRandom());
+    }
+
+    @VisibleForTesting
+    public Draft(DataFrame dataFrame, RandomGenerator randomGenerator) {
         this.dataFrame = dataFrame;
+        this.secureRandom = randomGenerator;
     }
 
     public DataFrame getDataFrame() {

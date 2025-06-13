@@ -16,6 +16,15 @@ public class DataFrame6455 implements DataFrame {
     private ByteBuffer buffer;
     private int limit;
     private int offset;
+    private final int maskKey;
+
+    public DataFrame6455() {
+        this(MASK.getInt(0));
+    }
+
+    public DataFrame6455(int maskKey) {
+        this.maskKey = maskKey;
+    }
 
     @Override
     public DataFrame wrap(ByteBuffer buffer, int offset, int n) {
@@ -36,6 +45,12 @@ public class DataFrame6455 implements DataFrame {
         }
     }
 
+    private void writeLong(long input, int numBytes) {
+        for (int i = numBytes - 1; i >= 0; i--) {
+            buffer.put((byte) (input >>> (i * 8)));
+        }
+    }
+
     @Override
     public void encode(Opcode opcode, ByteBuffer payload) {
         // No support for fragmented frames
@@ -45,9 +60,9 @@ public class DataFrame6455 implements DataFrame {
         byte mask = (byte) 0b10000000;
 
         int payloadLength = payload.remaining();
-        if (payloadLength > (2 << 15)) {
+        if (payloadLength >= (2 << 15)) {
             this.buffer.put((byte) (mask | 127));
-            writeInt(payloadLength, 8);
+            writeLong(payloadLength, 8);
         } else if (payloadLength > 125) {
             this.buffer.put((byte) (mask | 126));
             writeInt(payloadLength, 2);
@@ -55,10 +70,10 @@ public class DataFrame6455 implements DataFrame {
             this.buffer.put((byte) (mask | payloadLength));
         }
 
-        this.buffer.putInt(MASK.getInt(0));
+        this.buffer.putInt(maskKey);
 
         for (int i = 0; i < payloadLength; i++) {
-            this.buffer.put((byte) (payload.get(i) ^ MASK.get(i % 4)));
+            this.buffer.put((byte) (payload.get(i) ^ ((maskKey >> (8 * (i % 4))) & 0xFF)));
         }
     }
 

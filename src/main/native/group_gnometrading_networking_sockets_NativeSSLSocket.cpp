@@ -46,107 +46,110 @@ JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSock
         return handleSocketErrorWithMessage(env, -1, "Failed to allocate memory for SSLSocketState");
     }
 
-    state->ctx = SSL_CTX_new(TLS_client_method());
-    if (!state->ctx) {
-        free(state);
-        return handleSocketErrorWithMessage(env, -1, "Failed to create SSL context");
-    }
+    if (state->ctx = SSL_CTX_new(TLS_client_method())) {
+        int type = (stream ? SOCK_STREAM : SOCK_DGRAM);
+        int domain = ipv6_available() ? AF_INET6 : AF_INET;
 
-    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);
-    int domain = ipv6_available() ? AF_INET6 : AF_INET;
-
-    state->socket_fd = socket(domain, type, 0);
-    if (state->socket_fd < 0) {
-        free(state);
-        return handleSocketError(env, errno);
-    }
-
-    if (domain == AF_INET6 && ipv4_available()) {
-        int arg = 0;
-        if (setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&arg,
-                       sizeof(int)) < 0) {
-            JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
-                                         "Unable to set IPV6_V6ONLY");
-            close(state->socket_fd);
+        state->socket_fd = socket(domain, type, 0);
+        if (state->socket_fd < 0) {
+            SSL_CTX_free(state->ctx);
             free(state);
-            return -1;
+            return handleSocketError(env, errno);
         }
-    }
 
-
-    if (reuse) {
-        int arg = 1;
-        if (setsockopt(state->socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&arg,
-                       sizeof(arg)) < 0) {
-            JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
-                                         "Unable to set SO_REUSEADDR");
-            close(state->socket_fd);
-            free(state);
-            return -1;
+        if (domain == AF_INET6 && ipv4_available()) {
+            int arg = 0;
+            if (setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&arg,
+                           sizeof(int)) < 0) {
+                JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
+                                             "Unable to set IPV6_V6ONLY");
+                close(state->socket_fd);
+                SSL_CTX_free(state->ctx);
+                free(state);
+                return -1;
+            }
         }
-    }
 
+        if (reuse) {
+            int arg = 1;
+            if (setsockopt(state->socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&arg,
+                           sizeof(arg)) < 0) {
+                JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
+                                             "Unable to set SO_REUSEADDR");
+                close(state->socket_fd);
+                SSL_CTX_free(state->ctx);
+                free(state);
+                return -1;
+            }
+        }
 
 #if defined(__linux__)
-    if (type == SOCK_DGRAM) {
-        int arg = 0;
-        int level = (domain == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
-        if ((setsockopt(state->socket_fd, level, IP_MULTICAST_ALL, (char *)&arg,
-                        sizeof(arg)) < 0) &&
-            (errno != ENOPROTOOPT)) {
-            JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
-                                         "Unable to set IP_MULTICAST_ALL");
-            close(state->socket_fd);
-            free(state);
-            return -1;
-        }
-    }
-
-    if (domain == AF_INET6 && type == SOCK_DGRAM) {
-        /* By default, Linux uses the route default */
-        int arg = 1;
-        if (setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &arg,
-                       sizeof(arg)) < 0) {
-            JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
-                                         "Unable to set IPV6_MULTICAST_HOPS");
-            close(state->socket_fd);
-            free(state);
-            return -1;
+        if (type == SOCK_DGRAM) {
+            int arg = 0;
+            int level = (domain == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
+            if ((setsockopt(state->socket_fd, level, IP_MULTICAST_ALL, (char *)&arg,
+                            sizeof(arg)) < 0) &&
+                (errno != ENOPROTOOPT)) {
+                JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
+                                             "Unable to set IP_MULTICAST_ALL");
+                close(state->socket_fd);
+                SSL_CTX_free(state->ctx);
+                free(state);
+                return -1;
+            }
         }
 
-        /* Disable IPV6_MULTICAST_ALL if option supported */
-        arg = 0;
-        if ((setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_MULTICAST_ALL, (char *)&arg,
-                        sizeof(arg)) < 0) &&
-            (errno != ENOPROTOOPT)) {
-            JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
-                                         "Unable to set IPV6_MULTICAST_ALL");
-            close(state->socket_fd);
-            free(state);
-            return -1;
+        if (domain == AF_INET6 && type == SOCK_DGRAM) {
+            /* By default, Linux uses the route default */
+            int arg = 1;
+            if (setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &arg,
+                           sizeof(arg)) < 0) {
+                JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
+                                             "Unable to set IPV6_MULTICAST_HOPS");
+                close(state->socket_fd);
+                SSL_CTX_free(state->ctx);
+                free(state);
+                return -1;
+            }
+
+            /* Disable IPV6_MULTICAST_ALL if option supported */
+            arg = 0;
+            if ((setsockopt(state->socket_fd, IPPROTO_IPV6, IPV6_MULTICAST_ALL, (char *)&arg,
+                            sizeof(arg)) < 0) &&
+                (errno != ENOPROTOOPT)) {
+                JNU_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
+                                             "Unable to set IPV6_MULTICAST_ALL");
+                close(state->socket_fd);
+                SSL_CTX_free(state->ctx);
+                free(state);
+                return -1;
+            }
         }
-    }
 #endif
 
 #ifdef __APPLE__
-    /**
-     * Attempt to set SO_SNDBUF to a minimum size to allow sending large
-     * datagrams (net.inet.udp.maxdgram defaults to 9216).
-     */
-    if (type == SOCK_DGRAM) {
-        int size;
-        socklen_t arglen = sizeof(size);
-        if (getsockopt(state->socket_fd, SOL_SOCKET, SO_SNDBUF, &size, &arglen) == 0) {
-            int minSize = (domain == AF_INET6) ? 65527 : 65507;
-            if (size < minSize) {
-                setsockopt(state->socket_fd, SOL_SOCKET, SO_SNDBUF, &minSize,
-                           sizeof(minSize));
+        /**
+         * Attempt to set SO_SNDBUF to a minimum size to allow sending large
+         * datagrams (net.inet.udp.maxdgram defaults to 9216).
+         */
+        if (type == SOCK_DGRAM) {
+            int size;
+            socklen_t arglen = sizeof(size);
+            if (getsockopt(state->socket_fd, SOL_SOCKET, SO_SNDBUF, &size, &arglen) == 0) {
+                int minSize = (domain == AF_INET6) ? 65527 : 65507;
+                if (size < minSize) {
+                    setsockopt(state->socket_fd, SOL_SOCKET, SO_SNDBUF, &minSize,
+                               sizeof(minSize));
+                }
             }
         }
-    }
 #endif
 
-    return (jlong) state;
+        return (jlong) state;
+    } else {
+        free(state);
+        return handleSocketErrorWithMessage(env, -1, "Failed to create SSL context");
+    }
 }
 
 /*
