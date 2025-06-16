@@ -18,14 +18,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WebSocketServer implements Runnable {
+
+    private final String host;
     private final int port;
     private final AtomicBoolean running;
     private ServerSocketChannel serverChannel;
     private Selector selector;
     private static final Pattern SEC_WEBSOCKET_KEY_PATTERN = Pattern.compile("Sec-WebSocket-Key: (.*)");
 
-    public WebSocketServer(int port) {
+    public WebSocketServer(String host, int port) {
         this.port = port;
+        this.host = host;
         this.running = new AtomicBoolean(true);
     }
 
@@ -33,7 +36,7 @@ public class WebSocketServer implements Runnable {
     public void run() {
         try {
             serverChannel = ServerSocketChannel.open();
-            serverChannel.socket().bind(new InetSocketAddress(port));
+            serverChannel.socket().bind(new InetSocketAddress(host, port));
             serverChannel.configureBlocking(false);
 
             selector = Selector.open();

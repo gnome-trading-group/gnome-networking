@@ -23,7 +23,7 @@ public abstract class WebSocketIntegrationTest {
     
     @BeforeEach
     void setUp() throws IOException, URISyntaxException {
-        server = new WebSocketServer(TEST_PORT);
+        server = new WebSocketServer(TEST_HOST, TEST_PORT);
         serverExecutor = Executors.newSingleThreadExecutor();
         serverExecutor.submit(server);
 
