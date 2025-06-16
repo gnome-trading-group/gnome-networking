@@ -27,12 +27,12 @@ jobs:
           distribution: 'zulu'
           server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
 
-      - name: Build OS-Specific JAR
+      - name: Build and test OS-Specific JAR
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn clean package
+          mvn clean verify
 
       - name: Deploy OS-Specific JAR
         env:
