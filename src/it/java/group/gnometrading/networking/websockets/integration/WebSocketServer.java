@@ -33,12 +33,11 @@ public class WebSocketServer implements Runnable {
     public void run() {
         try {
             serverChannel = ServerSocketChannel.open();
-            serverChannel.socket().bind(new InetSocketAddress("127.0.0.1", port));
+            serverChannel.socket().bind(new InetSocketAddress(port));
             serverChannel.configureBlocking(false);
 
             selector = Selector.open();
             serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-            System.out.println("WebSocket server started on 127.0.0.1:" + port);
 
             while (running.get()) {
                 selector.select();
@@ -49,25 +48,16 @@ public class WebSocketServer implements Runnable {
                     SelectionKey key = iter.next();
                     iter.remove();
 
-                    try {
-                        if (key.isAcceptable()) {
-                            handleAccept(key);
-                        } else if (key.isReadable()) {
-                            handleRead(key);
-                        } else if (key.isWritable()) {
-                            handleWrite(key);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Error handling key: " + e.getMessage());
-                        e.printStackTrace();
-                        if (key.channel() != null) {
-                            key.channel().close();
-                        }
+                    if (key.isAcceptable()) {
+                        handleAccept(key);
+                    } else if (key.isReadable()) {
+                        handleRead(key);
+                    } else if (key.isWritable()) {
+                        handleWrite(key);
                     }
                 }
             }
         } catch (IOException e) {
-            System.err.println("Server error: " + e.getMessage());
             e.printStackTrace();
         } finally {
             stop();
