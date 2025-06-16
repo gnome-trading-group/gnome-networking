@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 
 public abstract class WebSocketIntegrationTest {
     protected static final int TEST_PORT = 8080;
-    protected static final String TEST_HOST = "localhost";
+    protected static final String TEST_HOST = "127.0.0.1";
     protected static final String TEST_PATH = "/ws";
     
     protected WebSocketServer server;
