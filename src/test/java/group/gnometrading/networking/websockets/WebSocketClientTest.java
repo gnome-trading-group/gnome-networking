@@ -181,7 +181,7 @@ class WebSocketClientTest {
             // According to RFC 6455, masking is applied by XORing the payload with the masking key
             // The masking key is cycled through for each byte of the payload
             for (int i = 0; i < testData.length; i++) {
-                byte maskByte = (byte) ((mask >> ((i % 4) * 8)) & 0xFF);
+                byte maskByte = (byte) ((mask >> (8 * (3 - (i % 4)))) & 0xFF);
                 buffer.put((byte) (testData[i] ^ maskByte));
             }
             return 2 + 4 + testData.length; // header + mask + payload

@@ -228,16 +228,17 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_read0(JNIEnv *env, jobject, jlong handle, jlong address, jint len) {
     SSLSocketState *state = (SSLSocketState *)handle;
-
     void *buf = (void *)jlong_to_ptr(address);
     jint n = SSL_read(state->ssl, buf, len);
-    if ((n == -1) && (errno == ECONNRESET || errno == EPIPE)) {
-        JNU_ThrowByName(env, "sun/net/ConnectionResetException",
-                        "Connection reset");
-        return IOS_THROWN;
-    } else {
-        return convertReturnVal(env, n, JNI_TRUE);
+    
+    if (n <= 0) {
+        int ssl_error = SSL_get_error(state->ssl, n);
+        if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE || errno == EINTR) {
+            return 0;  // Return 0 for temporary unavailability
+        }
+        return -1;  // Return -1 for actual errors
     }
+    return n;
 }
 
 /*
@@ -248,8 +249,16 @@ JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_write0(JNIEnv *env, jobject, jlong handle, jlong address, jint len) {
     SSLSocketState *state = (SSLSocketState *)handle;
     void *buf = (void *)jlong_to_ptr(address);
-
-    return convertReturnVal(env, SSL_write(state->ssl, buf, len), JNI_FALSE);
+    jint n = SSL_write(state->ssl, buf, len);
+    
+    if (n <= 0) {
+        int ssl_error = SSL_get_error(state->ssl, n);
+        if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE || errno == EINTR) {
+            return 0;  // Return 0 for temporary unavailability
+        }
+        return -1;  // Return -1 for actual errors
+    }
+    return n;
 }
 
 /*

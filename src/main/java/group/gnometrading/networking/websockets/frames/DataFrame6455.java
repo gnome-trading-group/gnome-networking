@@ -7,23 +7,23 @@ import java.util.Random;
 
 public class DataFrame6455 implements DataFrame {
 
-    private static final ByteBuffer MASK = ByteBuffer.allocate(4);
+    private static final ByteBuffer DEFAULT_MASK_KEY = ByteBuffer.allocate(4);
 
     static {
-        MASK.putInt(new Random().nextInt());
+        DEFAULT_MASK_KEY.putInt(new Random().nextInt());
     }
 
     private ByteBuffer buffer;
     private int limit;
     private int offset;
-    private final int maskKey;
+    private final ByteBuffer maskKey = ByteBuffer.allocate(4);
 
     public DataFrame6455() {
-        this(MASK.getInt(0));
+        this(DEFAULT_MASK_KEY.getInt(0));
     }
 
     public DataFrame6455(int maskKey) {
-        this.maskKey = maskKey;
+        this.maskKey.putInt(maskKey);
     }
 
     @Override
@@ -70,10 +70,10 @@ public class DataFrame6455 implements DataFrame {
             this.buffer.put((byte) (mask | payloadLength));
         }
 
-        this.buffer.putInt(maskKey);
+        this.buffer.putInt(maskKey.getInt(0));
 
         for (int i = 0; i < payloadLength; i++) {
-            this.buffer.put((byte) (payload.get(i) ^ ((maskKey >> (8 * (i % 4))) & 0xFF)));
+            this.buffer.put((byte) (payload.get(i) ^ maskKey.get(i % 4)));
         }
     }
 
@@ -129,7 +129,7 @@ public class DataFrame6455 implements DataFrame {
         if (this.masked()) {
             int key = this.getMaskingKey();
             for (int i = 0; i < payloadLength; i++) {
-                byte mask = (byte) ((key >> (8 * (i % 4))) & 0xFF); // not ideal
+                byte mask = (byte) ((key >> (8 * (3 - (i % 4)))) & 0xFF);
                 other.put((byte) (this.buffer.get(i + index) ^ mask));
             }
         } else {

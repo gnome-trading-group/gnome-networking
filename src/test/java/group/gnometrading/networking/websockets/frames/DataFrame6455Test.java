@@ -60,7 +60,7 @@ class DataFrame6455Test {
         byte[] maskedPayload = new byte[payloadSize];
         buffer.get(maskedPayload);
         for (int i = 0; i < payloadSize; i++) {
-            byte maskByte = (byte) ((mask >> (8 * (i % 4))) & 0xFF);
+            byte maskByte = (byte) ((mask >> (8 * (3 - (i % 4)))) & 0xFF);
             assertEquals(payload[i], (byte) (maskedPayload[i] ^ maskByte));
         }
     }
@@ -486,7 +486,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x50 // payload
-            }, 0, 7, 7, (byte) 0x02, new byte[] { 0x50 ^ 0x78 }),
+            }, 0, 7, 7, (byte) 0x02, new byte[] { 0x50 ^ 0x12 }),
 
             // Small binary frame (3 bytes)
             Arguments.of(new byte[] { 
@@ -494,7 +494,7 @@ class DataFrame6455Test {
                 (byte) 0b10000011,  // MASK + length 125
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x50, 0x77, 0x12  // payload
-            }, 0, 9, 9, (byte) 0x02, new byte[] { 0x50 ^ 0x78, 0x77 ^ 0x56, 0x12 ^ 0x34 }),
+            }, 0, 9, 9, (byte) 0x02, new byte[] { 0x50 ^ 0x12, 0x77 ^ 0x34, 0x12 ^ 0x56 }),
 
             // Medium binary frame (126 bytes)
             Arguments.of(new byte[] { 
@@ -503,7 +503,7 @@ class DataFrame6455Test {
                 0x00, 0x02,  // length 2
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x77, 0x12  // payload
-            }, 0, 10, 10, (byte) 0x02, new byte[] { 0x77 ^ 0x78, 0x12 ^ 0x56 }),
+            }, 0, 10, 10, (byte) 0x02, new byte[] { 0x77 ^ 0x12, 0x12 ^ 0x34 }),
 
             // Large binary frame (65536 bytes)
             Arguments.of(new byte[] { 
@@ -512,7 +512,7 @@ class DataFrame6455Test {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,  // length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x12  // payload
-            }, 0, 15, 15, (byte) 0x02, new byte[] { 0x12 ^ 0x78 }),
+            }, 0, 15, 15, (byte) 0x02, new byte[] { 0x12 ^ 0x12 }),
 
             // Text frame with UTF-8 data
             Arguments.of(new byte[] { 
@@ -520,7 +520,7 @@ class DataFrame6455Test {
                 (byte) 0b10000100,  // MASK + length 4
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 (byte) 0xE2, (byte) 0xAB, (byte) 0xCE, (byte) 0xF8  // 😀
-            }, 0, 10, 10, (byte) 0x01, new byte[] { (byte) 0xE2 ^ 0x78, (byte) 0xAB ^ 0x56, (byte) 0xCE ^ 0x34, (byte) 0xF8 ^ 0x12 }),
+            }, 0, 10, 10, (byte) 0x01, new byte[] { (byte) 0xE2 ^ 0x12, (byte) 0xAB ^ 0x34, (byte) 0xCE ^ 0x56, (byte) 0xF8 ^ 0x78 }),
 
             // PING frame
             Arguments.of(new byte[] { 
@@ -528,7 +528,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x42 // payload
-            }, 0, 7, 7, (byte) 0x09, new byte[] { 0x42 ^ 0x78 }),
+            }, 0, 7, 7, (byte) 0x09, new byte[] { 0x42 ^ 0x12 }),
 
             // PONG frame
             Arguments.of(new byte[] { 
@@ -536,7 +536,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x50  // payload
-            }, 0, 7, 7, (byte) 0x0A, new byte[] { 0x50 ^ 0x78 }),
+            }, 0, 7, 7, (byte) 0x0A, new byte[] { 0x50 ^ 0x12 }),
 
             // CLOSE frame
             Arguments.of(new byte[] { 
@@ -544,7 +544,7 @@ class DataFrame6455Test {
                 (byte) 0b10000010,  // MASK + length 2
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x11, (byte) 0xDC
-            }, 0, 8, 8, (byte) 0x08, new byte[] { 0x11 ^ 0x78, (byte) 0xDC ^ 0x56 }),
+            }, 0, 8, 8, (byte) 0x08, new byte[] { 0x11 ^ 0x12, (byte) 0xDC ^ 0x34 }),
 
             // Fragmented binary frame (first fragment)
             Arguments.of(new byte[] { 
@@ -552,7 +552,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x50  // payload
-            }, 0, 7, 7, (byte) 0x02, new byte[] { 0x50 ^ 0x78 }),
+            }, 0, 7, 7, (byte) 0x02, new byte[] { 0x50 ^ 0x12 }),
 
             // Fragmented binary frame (continuation)
             Arguments.of(new byte[] { 
@@ -560,7 +560,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x34  // payload
-            }, 0, 7, 7, (byte) 0x00, new byte[] { 0x34 ^ 0x78 }),
+            }, 0, 7, 7, (byte) 0x00, new byte[] { 0x34 ^ 0x12 }),
 
             // Frame with offset
             Arguments.of(new byte[] {
@@ -569,7 +569,7 @@ class DataFrame6455Test {
                 (byte) 0b10000001,  // MASK + length 1
                 0x12, 0x34, 0x56, 0x78,  // masking key
                 0x11  // payload
-            }, 3, 7, 7, (byte) 0x02, new byte[] { 0x11 ^ 0x78 })
+            }, 3, 7, 7, (byte) 0x02, new byte[] { 0x11 ^ 0x12 })
         );
     }
 }

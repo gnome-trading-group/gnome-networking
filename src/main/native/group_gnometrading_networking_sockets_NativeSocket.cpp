@@ -180,13 +180,17 @@ Java_group_gnometrading_networking_sockets_NativeSocket_read0(
     JNIEnv *env, jobject, jint fd, jlong address, jint len) {
     void *buf = (void *)jlong_to_ptr(address);
     jint n = read(fd, buf, len);
-    if ((n == -1) && (errno == ECONNRESET || errno == EPIPE)) {
-        JNU_ThrowByName(env, "sun/net/ConnectionResetException",
-                        "Connection reset");
-        return IOS_THROWN;
-    } else {
-        return convertReturnVal(env, n, JNI_TRUE);
+    
+    if (n == 0) {
+        return -1;  // EOF - connection closed by peer
     }
+    if (n == -1) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+            return 0;  // Return 0 for temporary unavailability
+        }
+        return -1;  // Return -1 for actual errors
+    }
+    return n;
 }
 
 /*
@@ -199,8 +203,15 @@ Java_group_gnometrading_networking_sockets_NativeSocket_write0(JNIEnv *env,
                                                                jobject, jint fd,
                                                                jlong address, jint len) {
     void *buf = (void *)jlong_to_ptr(address);
-
-    return convertReturnVal(env, write(fd, buf, len), JNI_FALSE);
+    jint n = write(fd, buf, len);
+    
+    if (n == -1) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+            return 0;  // Return 0 for temporary unavailability
+        }
+        return -1;  // Return -1 for actual errors
+    }
+    return n;
 }
 
 /*
