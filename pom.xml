@@ -6,7 +6,7 @@
     <artifactId>gnome-networking</artifactId>
     <!-- not using Maven release as we need both MacOS and Ubuntu builds -->
     <!-- update this manually... barbaric, I know -->
-    <version>1.0.57</version>
+    <version>1.0.58</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -65,6 +65,18 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
             <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.81</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.81</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -37,9 +37,13 @@ public class WebSocketClient {
         this.messageClient.close();
     }
 
+    public boolean isConnected() {
+        return this.messageClient.isConnected();
+    }
+
     public void reconnect() throws Exception {
-        this.messageClient.reconnect();
-        this.messageClient.sendHandshake();
+        this.close();
+        this.connect();
     }
 
     public void configureBlocking(final boolean blocking) throws IOException {
@@ -77,10 +81,10 @@ public class WebSocketClient {
         if (opcode == Opcode.BINARY || opcode == Opcode.TEXT) {
             this.messageClient.frame.copyPayloadData(this.body);
             this.body.flip();
-        }
-
-        if (opcode == Opcode.PING) {
+        } else if (opcode == Opcode.PING) {
             pong();
+        } else if (opcode == Opcode.CLOSING) {
+            return this.response.update(true, opcode, this.body, true);
         }
 
         if (this.messageClient.frame.isFragment()) {

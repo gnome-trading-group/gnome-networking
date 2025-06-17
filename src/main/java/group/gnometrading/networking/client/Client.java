@@ -28,4 +28,6 @@ public interface Client extends AutoCloseable {
     void clearBuffers();
 
     void reconnect() throws Exception;
+
+    boolean isConnected();
 }

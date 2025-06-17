@@ -1,7 +1,5 @@
-package group.gnometrading.networking.websockets.integration;
+package group.gnometrading.networking.websockets;
 
-import group.gnometrading.networking.websockets.WebSocketClient;
-import group.gnometrading.networking.websockets.WebSocketClientBuilder;
 import group.gnometrading.networking.websockets.drafts.RFC6455;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

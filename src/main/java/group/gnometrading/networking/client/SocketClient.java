@@ -25,12 +25,12 @@ public class SocketClient implements Client {
         this.socket = factory.createSocket(remoteAddress);
         this.readBuffer = ByteBuffer.allocateDirect(readBufferSize);
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
-
         this.clearBuffers();
     }
 
     @Override
     public void connect() throws IOException {
+        this.clearBuffers();
         this.socket.connect();
     }
 
@@ -121,7 +121,11 @@ public class SocketClient implements Client {
     @Override
     public void reconnect() throws Exception {
         this.close();
-        this.clearBuffers();
         this.connect();
+    }
+
+    @Override
+    public boolean isConnected() {
+        return this.socket.isConnected();
     }
 }
