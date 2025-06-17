@@ -20,10 +20,12 @@ public abstract class WebSocketIntegrationTest {
     protected ExecutorService serverExecutor;
     
     @BeforeEach
-    void setUp() throws IOException, URISyntaxException {
+    void setUp() throws Exception {
         server = new WebSocketServer(TEST_HOST, TEST_PORT);
         serverExecutor = Executors.newSingleThreadExecutor();
         serverExecutor.submit(server);
+
+        Thread.sleep(3_000); // wait for port to bind
 
         client = new WebSocketClientBuilder()
             .withURI(new URI("ws://" + TEST_HOST + ":" + TEST_PORT + TEST_PATH))

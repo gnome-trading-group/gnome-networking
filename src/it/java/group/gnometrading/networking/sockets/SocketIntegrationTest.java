@@ -21,10 +21,11 @@ public abstract class SocketIntegrationTest {
     protected abstract BaseSocketServer createServer();
     
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() throws Exception {
         server = createServer();
         serverExecutor = Executors.newSingleThreadScheduledExecutor();
         serverExecutor.schedule(server, 0, TimeUnit.MILLISECONDS);
+        Thread.sleep(3_000); // wait for port to bind
     }
     
     @AfterEach
