@@ -30,4 +30,8 @@ public interface Client extends AutoCloseable {
     void reconnect() throws Exception;
 
     boolean isConnected();
+
+    void setKeepAlive(boolean on) throws IOException;
+
+    void setTcpNoDelay(boolean on) throws IOException;
 }

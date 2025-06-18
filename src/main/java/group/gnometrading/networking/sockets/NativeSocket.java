@@ -110,4 +110,36 @@ public class NativeSocket implements GnomeSocket {
             throw new SocketException("Socket not connected");
         }
     }
+
+    @Override
+    public void setKeepAlive(boolean on) throws IOException {
+        ensureConnected();
+        setKeepAlive0(fd, on);
+    }
+
+    private native void setKeepAlive0(int fd, boolean on) throws IOException;
+
+    @Override
+    public void setReceiveBufferSize(int size) throws IOException {
+        ensureConnected();
+        setReceiveBufferSize0(fd, size);
+    }
+
+    private native void setReceiveBufferSize0(int fd, int size) throws IOException;
+
+    @Override
+    public void setSendBufferSize(int size) throws IOException {
+        ensureConnected();
+        setSendBufferSize0(fd, size);
+    }
+
+    private native void setSendBufferSize0(int fd, int size) throws IOException;
+
+    @Override
+    public void setTcpNoDelay(boolean on) throws IOException {
+        ensureConnected();
+        setTcpNoDelay0(fd, on);
+    }
+
+    private native void setTcpNoDelay0(int fd, boolean on) throws IOException;
 }

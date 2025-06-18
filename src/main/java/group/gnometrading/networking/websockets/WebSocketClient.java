@@ -98,4 +98,12 @@ public class WebSocketClient {
         this.messageClient.clearBuffers();
     }
 
+    public void setKeepAlive(boolean on) throws IOException {
+        this.messageClient.setKeepAlive(on);
+    }
+
+    public void setTcpNoDelay(boolean on) throws IOException {
+        this.messageClient.setTcpNoDelay(on);
+    }
+
 }

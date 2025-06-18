@@ -110,4 +110,36 @@ public class NativeSSLSocket implements GnomeSocket {
             throw new SocketException("Socket not connected");
         }
     }
+
+    @Override
+    public void setKeepAlive(boolean on) throws IOException {
+        ensureConnected();
+        setKeepAlive0(handle, on);
+    }
+
+    private native void setKeepAlive0(long handle, boolean on) throws IOException;
+
+    @Override
+    public void setReceiveBufferSize(int size) throws IOException {
+        ensureConnected();
+        setReceiveBufferSize0(handle, size);
+    }
+
+    private native void setReceiveBufferSize0(long handle, int size) throws IOException;
+
+    @Override
+    public void setSendBufferSize(int size) throws IOException {
+        ensureConnected();
+        setSendBufferSize0(handle, size);
+    }
+
+    private native void setSendBufferSize0(long handle, int size) throws IOException;
+
+    @Override
+    public void setTcpNoDelay(boolean on) throws IOException {
+        ensureConnected();
+        setTcpNoDelay0(handle, on);
+    }
+
+    private native void setTcpNoDelay0(long handle, boolean on) throws IOException;
 }

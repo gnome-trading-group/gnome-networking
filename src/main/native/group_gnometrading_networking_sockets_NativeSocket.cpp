@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <jni.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
@@ -224,6 +225,56 @@ Java_group_gnometrading_networking_sockets_NativeSocket_configureBlocking0(
     JNIEnv *env, jobject, jint fd, jboolean blocking) {
     if (configureBlocking(fd, blocking) < 0)
         JNU_ThrowIOExceptionWithLastError(env, "Configure blocking failed");
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setKeepAlive0
+ * Signature: (IZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setKeepAlive0
+  (JNIEnv* env, jobject obj, jint fd, jboolean on) {
+    int optval = on ? 1 : 0;
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set keep alive failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setReceiveBufferSize0
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setReceiveBufferSize0
+  (JNIEnv* env, jobject obj, jint fd, jint size) {
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set receive buffer size failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setSendBufferSize0
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setSendBufferSize0
+  (JNIEnv* env, jobject obj, jint fd, jint size) {
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set send buffer size failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setTcpNoDelay0
+ * Signature: (IZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setTcpNoDelay0
+  (JNIEnv* env, jobject obj, jint fd, jboolean on) {
+    int optval = on ? 1 : 0;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set TCP no delay failed");
+    }
 }
 
 #ifdef __cplusplus

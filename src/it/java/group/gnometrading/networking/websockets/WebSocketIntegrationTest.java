@@ -25,7 +25,11 @@ public abstract class WebSocketIntegrationTest {
         serverExecutor = Executors.newSingleThreadExecutor();
         serverExecutor.submit(server);
 
-        Thread.sleep(3_000); // wait for port to bind
+        try {
+            Thread.sleep(2_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         client = new WebSocketClientBuilder()
             .withURI(new URI("ws://" + TEST_HOST + ":" + TEST_PORT + TEST_PATH))

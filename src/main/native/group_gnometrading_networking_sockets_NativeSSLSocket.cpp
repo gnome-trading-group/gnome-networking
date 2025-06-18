@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <jni.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
@@ -270,6 +271,60 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
     SSLSocketState *state = (SSLSocketState *)handle;
     if (configureBlocking(state->socket_fd, blocking) < 0)
         JNU_ThrowIOExceptionWithLastError(env, "Configure blocking failed");
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setKeepAlive0
+ * Signature: (JZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setKeepAlive0
+  (JNIEnv* env, jobject obj, jlong handle, jboolean on) {
+    SSLSocketState *state = (SSLSocketState *)handle;
+    int optval = on ? 1 : 0;
+    if (setsockopt(state->socket_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set keep alive failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setReceiveBufferSize0
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setReceiveBufferSize0
+  (JNIEnv* env, jobject obj, jlong handle, jint size) {
+    SSLSocketState *state = (SSLSocketState *)handle;
+    if (setsockopt(state->socket_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set receive buffer size failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setSendBufferSize0
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setSendBufferSize0
+  (JNIEnv* env, jobject obj, jlong handle, jint size) {
+    SSLSocketState *state = (SSLSocketState *)handle;
+    if (setsockopt(state->socket_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set send buffer size failed");
+    }
+}
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setTcpNoDelay0
+ * Signature: (JZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setTcpNoDelay0
+  (JNIEnv* env, jobject obj, jlong handle, jboolean on) {
+    SSLSocketState *state = (SSLSocketState *)handle;
+    int optval = on ? 1 : 0;
+    if (setsockopt(state->socket_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set TCP no delay failed");
+    }
 }
 
 #ifdef __cplusplus

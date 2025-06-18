@@ -63,6 +63,38 @@ JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
 JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_configureBlocking0
   (JNIEnv *, jobject, jlong, jboolean);
 
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setKeepAlive0
+ * Signature: (JZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setKeepAlive0
+  (JNIEnv *, jobject, jlong, jboolean);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setReceiveBufferSize0
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setReceiveBufferSize0
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setSendBufferSize0
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setSendBufferSize0
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setTcpNoDelay0
+ * Signature: (JZ)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setTcpNoDelay0
+  (JNIEnv *, jobject, jlong, jboolean);
+
 #ifdef __cplusplus
 }
 #endif

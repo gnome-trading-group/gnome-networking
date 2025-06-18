@@ -128,4 +128,14 @@ public class SocketClient implements Client {
     public boolean isConnected() {
         return this.socket.isConnected();
     }
+
+    @Override
+    public void setKeepAlive(boolean on) throws IOException {
+        this.socket.setKeepAlive(on);
+    }
+
+    @Override
+    public void setTcpNoDelay(boolean on) throws IOException {
+        this.socket.setTcpNoDelay(on);
+    }
 }
