@@ -76,10 +76,10 @@ public class WebSocketClient {
             return this.response.update(false, null, null, message < 0);
         }
 
-        final Opcode opcode = this.messageClient.frame.getOpcode();
+        final Opcode opcode = this.messageClient.readFrame.getOpcode();
         this.body.clear();
         if (opcode == Opcode.BINARY || opcode == Opcode.TEXT) {
-            this.messageClient.frame.copyPayloadData(this.body);
+            this.messageClient.readFrame.copyPayloadData(this.body);
             this.body.flip();
         } else if (opcode == Opcode.PING) {
             pong();
@@ -87,7 +87,7 @@ public class WebSocketClient {
             return this.response.update(true, opcode, this.body, true);
         }
 
-        if (this.messageClient.frame.isFragment()) {
+        if (this.messageClient.readFrame.isFragment()) {
             throw new IllegalStateException("Sorry, I haven't implemented fragments yet.");
         }
 
