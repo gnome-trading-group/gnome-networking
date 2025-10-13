@@ -75,6 +75,7 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
         int consecutiveZeroReads = 0;
         while (totalBytesRead < largeData.length) {
             int bytesRead = clientSocket.read(receiveBuffer);
+            if (bytesRead == -1) break;
             if (bytesRead == 0) {
                 consecutiveZeroReads++;
                 if (consecutiveZeroReads > 100) {
