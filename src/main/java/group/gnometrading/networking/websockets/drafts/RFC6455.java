@@ -3,6 +3,7 @@ package group.gnometrading.networking.websockets.drafts;
 import group.gnometrading.annotations.VisibleForTesting;
 import group.gnometrading.networking.websockets.HandshakeInput;
 import group.gnometrading.networking.websockets.enums.HandshakeState;
+import group.gnometrading.networking.websockets.frames.DataFrame;
 import group.gnometrading.networking.websockets.frames.DataFrame6455;
 
 import java.nio.ByteBuffer;
@@ -32,12 +33,17 @@ public class RFC6455 extends Draft {
     }
 
     public RFC6455() {
-        super(new DataFrame6455());
+        super();
     }
 
     @VisibleForTesting
     public RFC6455(RandomGenerator randomGenerator) {
-        super(new DataFrame6455(), randomGenerator);
+        super(randomGenerator);
+    }
+
+    @Override
+    public DataFrame createDataFrame() {
+        return new DataFrame6455();
     }
 
     @Override

@@ -16,22 +16,22 @@ public abstract class Draft {
 
     // TODO: What's the latency on this?
     protected final RandomGenerator secureRandom;
-    private final DataFrame dataFrame;
 
-    public Draft(DataFrame dataFrame) {
-        this(dataFrame, new SecureRandom());
+    public Draft() {
+        this(new SecureRandom());
     }
 
     @VisibleForTesting
-    public Draft(DataFrame dataFrame, RandomGenerator randomGenerator) {
-        this.dataFrame = dataFrame;
+    public Draft(RandomGenerator randomGenerator) {
         this.secureRandom = randomGenerator;
     }
 
-    public DataFrame getDataFrame() {
-        return this.dataFrame;
-    }
-
+    /**
+     * Create a new DataFrame based off the Draft.
+     *
+     * @return the new DataFrame
+     */
+    public abstract DataFrame createDataFrame();
 
     /**
      * Construct a byte array of the input of a handshake sent to a server.

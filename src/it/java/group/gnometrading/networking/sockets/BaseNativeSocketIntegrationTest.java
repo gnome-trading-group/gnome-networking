@@ -72,9 +72,18 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
 
         ByteBuffer receiveBuffer = ByteBuffer.allocateDirect(1 << 21);
         int totalBytesRead = 0;
+        int consecutiveZeroReads = 0;
         while (totalBytesRead < largeData.length) {
             int bytesRead = clientSocket.read(receiveBuffer);
-            if (bytesRead == -1) break;
+            if (bytesRead == 0) {
+                consecutiveZeroReads++;
+                if (consecutiveZeroReads > 100) {
+                    Thread.sleep(10); // Brief pause for SSL processing
+                    consecutiveZeroReads = 0;
+                }
+                continue;
+            }
+            consecutiveZeroReads = 0;
             totalBytesRead += bytesRead;
         }
 

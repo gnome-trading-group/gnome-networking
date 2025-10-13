@@ -15,6 +15,7 @@ public class SocketClient implements Client {
     protected final GnomeSocket socket;
     protected final ByteBuffer readBuffer;
     protected final ByteBuffer writeBuffer;
+    protected final int readBufferSize, writeBufferSize;
 
     protected SocketClient(
             InetSocketAddress remoteAddress,
@@ -25,6 +26,8 @@ public class SocketClient implements Client {
         this.socket = factory.createSocket(remoteAddress);
         this.readBuffer = ByteBuffer.allocateDirect(readBufferSize);
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
+        this.readBufferSize = readBufferSize;
+        this.writeBufferSize = writeBufferSize;
         this.clearBuffers();
     }
 
@@ -35,22 +38,22 @@ public class SocketClient implements Client {
     }
 
     @Override
-    public int write(int len) throws IOException {
-        this.writeBuffer.flip();
-        len = Math.min(len, this.writeBuffer.remaining());
+    public int write(final ByteBuffer directBuffer, int len) throws IOException {
+        directBuffer.flip();
+        len = Math.min(len, directBuffer.remaining());
 
-        int bytes = this.socket.write(this.writeBuffer, len);
+        int bytes = this.socket.write(directBuffer, len);
 
         if (bytes > 0) {
-            if (this.writeBuffer.remaining() == 0) {
-                this.writeBuffer.clear();
+            if (directBuffer.remaining() == 0) {
+                directBuffer.clear();
             } else {
-                this.writeBuffer.compact();
+                directBuffer.compact();
             }
-        } else if (this.writeBuffer.limit() < this.writeBuffer.capacity()) {
+        } else if (directBuffer.limit() < directBuffer.capacity()) {
             // There's unconsumed bytes, reverse flip
-            this.writeBuffer.position(this.writeBuffer.limit());
-            this.writeBuffer.limit(this.writeBuffer.capacity());
+            directBuffer.position(directBuffer.limit());
+            directBuffer.limit(directBuffer.capacity());
         }
 
         return normalize(bytes);
@@ -58,32 +61,32 @@ public class SocketClient implements Client {
 
 
     @Override
-    public int read(int len) throws IOException {
-        if (this.readBuffer.position() > 0) {
-            if (this.readBuffer.remaining() == 0) {
-                this.readBuffer.clear();
+    public int read(final ByteBuffer directBuffer, int len) throws IOException {
+        if (directBuffer.position() > 0) {
+            if (directBuffer.remaining() == 0) {
+                directBuffer.clear();
             } else {
-                this.readBuffer.compact();
+                directBuffer.compact();
             }
-        } else if (this.readBuffer.limit() < this.readBuffer.capacity()) {
+        } else if (directBuffer.limit() < directBuffer.capacity()) {
             // There's unconsumed bytes, reverse flip
-            this.readBuffer.position(this.readBuffer.limit());
-            this.readBuffer.limit(this.readBuffer.capacity());
+            directBuffer.position(directBuffer.limit());
+            directBuffer.limit(directBuffer.capacity());
         }
 
-        len = Math.min(len, this.readBuffer.remaining());
-        int bytes = normalize(this.socket.read(this.readBuffer, len));
+        len = Math.min(len, directBuffer.remaining());
+        int bytes = normalize(this.socket.read(directBuffer, len));
         if (bytes < 0) {
             return bytes;
         }
 
-        if (this.readBuffer.position() > 0) {
-            this.readBuffer.flip();
+        if (directBuffer.position() > 0) {
+            directBuffer.flip();
         } else { // If position == 0, we read nothing on the wire
-            this.readBuffer.limit(bytes);
+            directBuffer.limit(bytes);
         }
 
-        return this.readBuffer.remaining();
+        return directBuffer.remaining();
     }
 
     protected static int normalize(final int n) {
@@ -137,5 +140,15 @@ public class SocketClient implements Client {
     @Override
     public void setTcpNoDelay(boolean on) throws IOException {
         this.socket.setTcpNoDelay(on);
+    }
+
+    @Override
+    public int getReadBufferSize() {
+        return this.readBufferSize;
+    }
+
+    @Override
+    public int getWriteBufferSize() {
+        return this.writeBufferSize;
     }
 }
