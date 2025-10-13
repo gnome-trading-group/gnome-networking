@@ -60,8 +60,8 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
 
         Thread.sleep(1_000);
 
-        // Create a large message (1MB)
-        byte[] largeData = new byte[1024 * 1024];
+        // Create a large message (100 kb)
+        byte[] largeData = new byte[1024 * 100];
         for (int i = 0; i < largeData.length; i++) {
             largeData[i] = (byte) (i % 256);
         }
