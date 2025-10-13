@@ -18,7 +18,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     private final URI uri;
     private final Draft draft;
-    public final DataFrame readFrame, writeFrame;
+    public final DataFrame frame;
 
     WebSocketMessageClient(
             URI uri,
@@ -30,8 +30,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         super(parseURI(uri), socketFactory, readBufferSize, writeBufferSize);
         this.draft = draft;
         this.uri = uri;
-        this.readFrame = this.draft.createDataFrame();
-        this.writeFrame = this.draft.createDataFrame();
+        this.frame = this.draft.getDataFrame();
     }
 
     private static InetSocketAddress parseURI(URI uri) {
@@ -46,7 +45,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     public int writeMessage(Opcode opcode, ByteBuffer buffer) throws IOException {
         this.writeBuffer.clear();
-        this.writeFrame.wrap(this.writeBuffer).encode(opcode, buffer);
+        this.frame.wrap(this.writeBuffer).encode(opcode, buffer);
         this.writeBuffer.flip();
 
         return normalize(this.socket.write(this.writeBuffer));
@@ -54,13 +53,13 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     @Override
     public boolean isCompleteMessage() {
-        this.readFrame.wrap(this.readBuffer);
-        final boolean complete = !this.readFrame.isIncomplete();
+        this.frame.wrap(this.readBuffer);
+        final boolean complete = !this.frame.isIncomplete();
         if (complete) {
-            this.readBuffer.position(this.readBuffer.position() + this.readFrame.length());
-        } else if (this.readFrame.hasCompleteHeader() && this.readBuffer.capacity() < this.readFrame.length()) {
+            this.readBuffer.position(this.readBuffer.position() + this.frame.length());
+        } else if (this.frame.hasCompleteHeader() && this.readBuffer.capacity() < this.frame.length()) {
             throw new RuntimeException("Read buffer overflowed. Capacity bytes " + this.readBuffer.capacity() +
-                    " and needed " + this.readFrame.length() + " bytes");
+                    " and needed " + this.frame.length() + " bytes");
         }
         return complete;
     }
