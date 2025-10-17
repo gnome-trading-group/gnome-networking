@@ -4,15 +4,12 @@ import group.gnometrading.networking.client.Client;
 import group.gnometrading.networking.websockets.drafts.Draft;
 import group.gnometrading.networking.websockets.enums.HandshakeState;
 import group.gnometrading.networking.websockets.exceptions.InvalidHandshakeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.*;
 
 public class HandshakeHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(HandshakeHandler.class);
     private static final int TIMEOUT_IN_SECONDS = 30; // This should be reasonable for everyone. Right? Guys?
 
     /**
@@ -26,9 +23,7 @@ public class HandshakeHandler {
      */
     public static void attemptHandshake(Client client, Draft draft, HandshakeInput input) throws InvalidHandshakeException {
         Future<HandshakeState> attempt = CompletableFuture.supplyAsync(() -> {
-            logger.trace("Attempting to send handshake to server...");
             sendHandshake(client, draft, input);
-            logger.trace("Handshake successfully sent. Waiting for response...");
             return acceptHandshake(client, draft);
         });
 
@@ -68,8 +63,6 @@ public class HandshakeHandler {
                 if (result != HandshakeState.INCOMPLETE) {
                     return result;
                 }
-
-                logger.trace("Partial handshake received. Continuing...");
             }
         } catch (IOException e) {
             throw new InvalidHandshakeException(HandshakeState.INVALID_READ);
