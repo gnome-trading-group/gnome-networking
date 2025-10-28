@@ -10,8 +10,6 @@ import java.util.concurrent.*;
 
 public class HandshakeHandler {
 
-    private static final int TIMEOUT_IN_SECONDS = 30; // This should be reasonable for everyone. Right? Guys?
-
     /**
      * Attempt a handshake as the client to whomever we are connected to over the socket.
      * <p />
@@ -22,23 +20,11 @@ public class HandshakeHandler {
      * @throws InvalidHandshakeException on an unsuccessful handshake
      */
     public static void attemptHandshake(Client client, Draft draft, HandshakeInput input) throws InvalidHandshakeException {
-        Future<HandshakeState> attempt = CompletableFuture.supplyAsync(() -> {
-            sendHandshake(client, draft, input);
-            return acceptHandshake(client, draft);
-        });
+        sendHandshake(client, draft, input);
+        HandshakeState result = acceptHandshake(client, draft);
 
-        try {
-            HandshakeState result = attempt.get(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-
-            if (result != HandshakeState.MATCHED) {
-                throw new InvalidHandshakeException(result);
-            }
-        } catch (InterruptedException e) {
-            // NO-OP if interrupted; what are we gonna do? :P
-        } catch (TimeoutException e) {
-            throw new InvalidHandshakeException(HandshakeState.TIMEOUT);
-        } catch (ExecutionException e) {
-            throw new InvalidHandshakeException(HandshakeState.UNKNOWN);
+        if (result != HandshakeState.MATCHED) {
+            throw new InvalidHandshakeException(result);
         }
     }
 

@@ -45,6 +45,10 @@ public abstract class BaseSocketServer implements Runnable {
                     SelectionKey key = iter.next();
                     iter.remove();
 
+                    if (!key.isValid()) {
+                        continue;
+                    }
+
                     try {
                         if (key.isAcceptable()) {
                             handleAccept(key);

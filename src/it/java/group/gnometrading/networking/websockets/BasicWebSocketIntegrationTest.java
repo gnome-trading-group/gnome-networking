@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,26 +25,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
     @Timeout(value = 20)
     void testBinaryMessageExchange() throws IOException {
         client.connect();
-
-        byte[] testData = new byte[100];
-        for (int i = 0; i < testData.length; i++) {
-            testData[i] = (byte) i;
-        }
-        ByteBuffer buffer = ByteBuffer.wrap(testData);
-        assertTrue(client.send(buffer));
-
-        // Read the echo response
-        WebSocketResponse response = client.read();
-        assertTrue(response.isSuccess());
-        assertEquals(Opcode.BINARY, response.getOpcode());
-
-        // Verify the echoed data matches what we sent
-        ByteBuffer receivedData = response.getBody();
-        assertNotNull(receivedData);
-        assertEquals(testData.length, receivedData.remaining());
-        byte[] receivedBytes = new byte[testData.length];
-        receivedData.get(receivedBytes);
-        assertArrayEquals(testData, receivedBytes);
+        sendRandomBinary();
     }
 
     @Test
@@ -194,5 +176,76 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
         receivedMessage = StandardCharsets.UTF_8.decode(response.getBody()).toString();
         assertEquals(reconnectMessage, receivedMessage);
+    }
+
+    @Test
+    @Timeout(value = 20)
+    void testClientReconnectionWithUnknownDisconnect() throws Exception {
+        // First connection
+        client.connect();
+        assertTrue(client.isConnected());
+
+        // Send a message to verify connection
+        String testMessage = "Before disconnect";
+        ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
+        assertTrue(client.send(Opcode.TEXT, buffer));
+
+        WebSocketResponse response = client.read();
+        assertTrue(response.isSuccess());
+        assertEquals(Opcode.TEXT, response.getOpcode());
+
+        String receivedMessage = StandardCharsets.UTF_8.decode(response.getBody()).toString();
+        assertEquals(testMessage, receivedMessage);
+
+        for (int i = 0; i < 10; i++) {
+            testMessage = "Message " + i;
+            buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
+            assertTrue(client.send(Opcode.TEXT, buffer));
+
+            response = client.read();
+            assertTrue(response.isSuccess());
+            assertEquals(Opcode.TEXT, response.getOpcode());
+
+            receivedMessage = StandardCharsets.UTF_8.decode(response.getBody()).toString();
+            assertEquals(testMessage, receivedMessage);
+
+            testMessage = "disconnect";
+            buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
+            assertTrue(client.send(Opcode.TEXT, buffer));
+
+            response = client.read();
+            assertFalse(response.isSuccess());
+            assertTrue(response.isClosed());
+
+            client.connect();
+            assertTrue(client.isConnected());
+
+            testMessage = "After reconnect";
+            buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
+            assertTrue(client.send(Opcode.TEXT, buffer));
+            response = client.read();
+            assertTrue(response.isSuccess());
+            assertEquals(Opcode.TEXT, response.getOpcode());
+        }
+    }
+
+    private void sendRandomBinary() throws IOException {
+        byte[] testData = new byte[100];
+        new Random().nextBytes(testData);
+        ByteBuffer buffer = ByteBuffer.wrap(testData);
+        assertTrue(client.send(buffer));
+
+        // Read the echo response
+        WebSocketResponse response = client.read();
+        assertTrue(response.isSuccess());
+        assertEquals(Opcode.BINARY, response.getOpcode());
+
+        // Verify the echoed data matches what we sent
+        ByteBuffer receivedData = response.getBody();
+        assertNotNull(receivedData);
+        assertEquals(testData.length, receivedData.remaining());
+        byte[] receivedBytes = new byte[testData.length];
+        receivedData.get(receivedBytes);
+        assertArrayEquals(testData, receivedBytes);
     }
 } 
