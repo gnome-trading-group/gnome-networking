@@ -1,5 +1,6 @@
 package group.gnometrading.networking.sockets;
 
+import group.gnometrading.networking.utils.IOUtil;
 import group.gnometrading.resources.LibraryLoader;
 import sun.nio.ch.DirectBuffer;
 import sun.nio.ch.IOStatus;
@@ -92,7 +93,7 @@ public class NativeSSLSocket implements GnomeSocket {
         int written = this.write0(this.handle, ((DirectBuffer) directBuffer).address() + pos, len);
         if (written > 0)
             directBuffer.position(pos + written);
-        return written;
+        return IOUtil.normalize(written);
     }
 
     private native int write0(long handle, long address, int len) throws IOException;

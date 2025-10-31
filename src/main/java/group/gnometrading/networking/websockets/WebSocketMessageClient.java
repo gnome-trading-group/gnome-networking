@@ -44,22 +44,26 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         HandshakeHandler.attemptHandshake(this, this.draft, input);
     }
 
-    public int writeMessage(Opcode opcode, ByteBuffer buffer) throws IOException {
+    public int writeBuffer(ByteBuffer buffer) throws IOException {
+        return this.socket.write(buffer);
+    }
+
+    public int writeWebSocketMessage(Opcode opcode, ByteBuffer buffer) throws IOException {
         this.writeBuffer.clear();
         this.writeFrame.wrap(this.writeBuffer).encode(opcode, buffer);
         this.writeBuffer.flip();
 
-        return normalize(this.socket.write(this.writeBuffer));
+        return this.socket.write(this.writeBuffer);
     }
 
     @Override
-    public boolean isCompleteMessage() {
-        this.readFrame.wrap(this.readBuffer);
+    public boolean isCompleteMessage(final ByteBuffer byteBuffer) {
+        this.readFrame.wrap(byteBuffer);
         final boolean complete = !this.readFrame.isIncomplete();
         if (complete) {
-            this.readBuffer.position(this.readBuffer.position() + this.readFrame.length());
-        } else if (this.readFrame.hasCompleteHeader() && this.readBuffer.capacity() < this.readFrame.length()) {
-            throw new RuntimeException("Read buffer overflowed. Capacity bytes " + this.readBuffer.capacity() +
+            byteBuffer.position(byteBuffer.position() + this.readFrame.length());
+        } else if (this.readFrame.hasCompleteHeader() && byteBuffer.capacity() < this.readFrame.length()) {
+            throw new RuntimeException("Read buffer overflowed. Capacity bytes " + byteBuffer.capacity() +
                     " and needed " + this.readFrame.length() + " bytes");
         }
         return complete;

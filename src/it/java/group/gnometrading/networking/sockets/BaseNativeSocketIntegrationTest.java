@@ -54,6 +54,7 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
     }
 
     @Test
+    @Timeout(value = 20)
     void testLargeDataExchange() throws Exception {
         clientSocket = createClient();
         clientSocket.connect();

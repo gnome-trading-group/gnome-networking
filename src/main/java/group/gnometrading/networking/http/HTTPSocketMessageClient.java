@@ -8,6 +8,7 @@ import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 
 class HTTPSocketMessageClient extends AbstractSocketMessageClient {
 
@@ -73,8 +74,8 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     }
 
     @Override
-    public boolean isCompleteMessage() {
-        this.httpDecoder.wrap(this.readBuffer);
+    public boolean isCompleteMessage(final ByteBuffer byteBuffer) {
+        this.httpDecoder.wrap(byteBuffer);
         return this.httpDecoder.isComplete();
     }
 

@@ -33,7 +33,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
     void testPingPong() throws IOException {
         client.connect();
 
-        assertTrue(client.ping());
+        assertTrue(client.writePingMessage());
 
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
@@ -47,7 +47,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
         String testMessage = "Hello, WebSocket!";
         ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
@@ -66,7 +66,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         String[] messages = {"First", "Second", "Third"};
         for (String message : messages) {
             ByteBuffer buffer = ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8));
-            assertTrue(client.send(Opcode.TEXT, buffer));
+            assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
             WebSocketResponse response = client.read();
             assertTrue(response.isSuccess());
@@ -85,7 +85,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
         String message = "This is an easter egg. Send it to Mason and he'll buy you a beer!";
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
@@ -94,7 +94,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
         message = "disconnect";
         buffer = ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
         assertTrue(client.isConnected());
 
         response = client.read();
@@ -110,7 +110,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
         String message = "disconnect";
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         WebSocketResponse response = client.read();
         assertFalse(response.isSuccess());
@@ -120,7 +120,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         assertTrue(client.isConnected());
         message = "hello";
         buffer = ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         response = client.read();
         assertTrue(response.isSuccess());
@@ -138,7 +138,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         // Send a message to verify connection
         String testMessage = "Before disconnect";
         ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
@@ -155,7 +155,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         // Send another message to verify reconnection
         String reconnectMessage = "After reconnect";
         buffer = ByteBuffer.wrap(reconnectMessage.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         response = client.read();
         assertTrue(response.isSuccess());
@@ -168,7 +168,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         assertTrue(client.isConnected());
         reconnectMessage = "After reconnect 2";
         buffer = ByteBuffer.wrap(reconnectMessage.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         response = client.read();
         assertTrue(response.isSuccess());
@@ -188,7 +188,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         // Send a message to verify connection
         String testMessage = "Before disconnect";
         ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-        assertTrue(client.send(Opcode.TEXT, buffer));
+        assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
@@ -200,7 +200,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
         for (int i = 0; i < 10; i++) {
             testMessage = "Message " + i;
             buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-            assertTrue(client.send(Opcode.TEXT, buffer));
+            assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
             response = client.read();
             assertTrue(response.isSuccess());
@@ -211,7 +211,7 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
             testMessage = "disconnect";
             buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-            assertTrue(client.send(Opcode.TEXT, buffer));
+            assertTrue(client.writeMessage(Opcode.TEXT, buffer));
 
             response = client.read();
             assertFalse(response.isSuccess());
@@ -222,18 +222,35 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
             testMessage = "After reconnect";
             buffer = ByteBuffer.wrap(testMessage.getBytes(StandardCharsets.UTF_8));
-            assertTrue(client.send(Opcode.TEXT, buffer));
+            assertTrue(client.writeMessage(Opcode.TEXT, buffer));
             response = client.read();
             assertTrue(response.isSuccess());
             assertEquals(Opcode.TEXT, response.getOpcode());
         }
     }
 
+    @Test
+    @Timeout(value = 20)
+    void testSendCustomBuffer() throws IOException {
+        client.connect();
+        assertTrue(client.isConnected());
+
+        var buffer = ByteBuffer.allocateDirect(1024);
+        client.wrapMessage(buffer, Opcode.TEXT, ByteBuffer.wrap("Hello, WebSocket!".getBytes(StandardCharsets.UTF_8)));
+        buffer.flip();
+        assertTrue(client.writeBuffer(buffer));
+
+        WebSocketResponse response = client.read();
+        assertTrue(response.isSuccess());
+        assertEquals(Opcode.TEXT, response.getOpcode());
+        assertEquals("Hello, WebSocket!", StandardCharsets.UTF_8.decode(response.getBody()).toString());
+    }
+
     private void sendRandomBinary() throws IOException {
         byte[] testData = new byte[100];
         new Random().nextBytes(testData);
         ByteBuffer buffer = ByteBuffer.wrap(testData);
-        assertTrue(client.send(buffer));
+        assertTrue(client.writeMessage(Opcode.BINARY, buffer));
 
         // Read the echo response
         WebSocketResponse response = client.read();

@@ -76,13 +76,13 @@ class WebSocketClientTest {
         ByteBuffer buffer = ByteBuffer.wrap(data);
 
         when(mockSocket.write(any(ByteBuffer.class))).thenReturn(WRITE_BUFFER_SIZE);
-        boolean result = client.send(buffer);
+        boolean result = client.writeMessage(Opcode.BINARY, buffer);
         assertTrue(result);
         verify(mockSocket).write(any(ByteBuffer.class));
     }
 
     @Test
-    void testSendPing() throws IOException, URISyntaxException {
+    void testSendWritePingMessage() throws IOException, URISyntaxException {
         setupSuccessfulHandshake();
         client.connect();
 
@@ -98,7 +98,7 @@ class WebSocketClientTest {
             assertTrue(buffer.get(2) != 0 || buffer.get(3) != 0 || buffer.get(4) != 0 || buffer.get(5) != 0);
             return WRITE_BUFFER_SIZE;
         });
-        boolean result = client.ping();
+        boolean result = client.writePingMessage();
         assertTrue(result);
         verify(mockSocket).write(any(ByteBuffer.class));
 
@@ -117,7 +117,7 @@ class WebSocketClientTest {
     }
 
     @Test
-    void testReceivePing() throws IOException, URISyntaxException {
+    void testReceiveWritePingMessage() throws IOException, URISyntaxException {
         setupSuccessfulHandshake();
         client.connect();
 
@@ -134,17 +134,6 @@ class WebSocketClientTest {
         WebSocketResponse response = client.read();
         assertTrue(response.isSuccess());
         assertEquals(Opcode.PING, response.getOpcode());
-
-        // Verify PONG frame was sent
-        verify(mockSocket).write(argThat(buffer -> {
-            // Verify PONG frame format:
-            // - First byte: FIN (1) + PONG opcode (10)
-            return buffer.get(0) == (byte) 0x8A &&
-                   // - Second byte: MASK (1) + payload length (0)
-                   buffer.get(1) == (byte) 0x80 &&
-                   // - Next 4 bytes: masking key
-                   (buffer.get(2) != 0 || buffer.get(3) != 0 || buffer.get(4) != 0 || buffer.get(5) != 0);
-        }));
     }
 
     @Test

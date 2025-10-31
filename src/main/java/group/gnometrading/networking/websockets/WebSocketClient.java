@@ -50,28 +50,52 @@ public class WebSocketClient {
         this.messageClient.configureBlocking(blocking);
     }
 
-    private boolean pong() throws IOException {
-        return send(Opcode.PONG);
+    public void wrapPingMessage(final ByteBuffer output) {
+        this.messageClient.writeFrame.wrap(output).encode(Opcode.PING, EMPTY);
     }
 
-    public boolean ping() throws IOException {
-        return send(Opcode.PING);
+    public boolean writePingMessage() throws IOException {
+        return send(Opcode.PING, EMPTY);
     }
 
-    public boolean send(final ByteBuffer buffer) throws IOException {
-        return send(Opcode.BINARY, buffer);
+    public void wrapPongMessage(final ByteBuffer output) {
+        this.messageClient.writeFrame.wrap(output).encode(Opcode.PONG, EMPTY);
     }
 
-    public boolean send(final Opcode opcode) throws IOException {
+    public boolean writePongMessage() throws IOException {
+        return send(Opcode.PONG, EMPTY);
+    }
+
+    public void wrapMessage(final ByteBuffer output, final Opcode opcode, final ByteBuffer payload) {
+        this.messageClient.writeFrame.wrap(output).encode(opcode, payload);
+    }
+
+    public boolean writeMessage(final Opcode opcode, final ByteBuffer payload) throws IOException {
+        return send(opcode, payload);
+    }
+
+    public void wrapMessage(final ByteBuffer output, final Opcode opcode) {
+        this.messageClient.writeFrame.wrap(output).encode(opcode, EMPTY);
+    }
+
+    public boolean writeMessage(final Opcode opcode) throws IOException {
         return send(opcode, EMPTY);
     }
 
-    public boolean send(final Opcode opcode, final ByteBuffer buffer) throws IOException {
-        return this.messageClient.writeMessage(opcode, buffer) > 0;
+    public boolean writeBuffer(final ByteBuffer buffer) throws IOException {
+        return this.messageClient.writeBuffer(buffer) > 0;
+    }
+
+    private boolean send(final Opcode opcode, final ByteBuffer buffer) throws IOException {
+        return this.messageClient.writeWebSocketMessage(opcode, buffer) > 0;
     }
 
     public WebSocketResponse read() throws IOException {
-        int message = this.messageClient.readMessage();
+        return read(this.messageClient.getReadBuffer());
+    }
+
+    public WebSocketResponse read(final ByteBuffer buffer) throws IOException {
+        int message = this.messageClient.readMessage(buffer);
         if (message <= 0) {
             return this.response.update(false, null, null, message < 0);
         }
@@ -81,8 +105,6 @@ public class WebSocketClient {
         if (opcode == Opcode.BINARY || opcode == Opcode.TEXT) {
             this.messageClient.readFrame.copyPayloadData(this.body);
             this.body.flip();
-        } else if (opcode == Opcode.PING) {
-            pong();
         } else if (opcode == Opcode.CLOSING) {
             return this.response.update(true, opcode, this.body, true);
         }

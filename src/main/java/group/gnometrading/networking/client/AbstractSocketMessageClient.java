@@ -29,7 +29,7 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
 
     private boolean checkMessage(final ByteBuffer byteBuffer) {
         byteBuffer.mark();
-        final boolean complete = isCompleteMessage();
+        final boolean complete = isCompleteMessage(byteBuffer);
         if (!complete) {
             byteBuffer.reset();
         }
@@ -42,5 +42,5 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
      *
      * @return true if there's a complete message
      */
-    public abstract boolean isCompleteMessage();
+    public abstract boolean isCompleteMessage(final ByteBuffer byteBuffer);
 }
