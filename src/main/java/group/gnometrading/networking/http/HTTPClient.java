@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
  * HTTPClient which produces garbage due to creating new sockets on connection close.
  * This client is not meant for multithreading use.
  */
-public class HTTPClient {
+public class HTTPClient implements AutoCloseable {
 
     private final GnomeMap<String, HTTPSocketMessageClient> socketPool;
     private final HTTPResponse httpResponse;
@@ -34,8 +34,15 @@ public class HTTPClient {
             final String headerKey2,
             final String headerValue2
     ) throws IOException {
-        final HTTPSocketMessageClient client = getSocketConnection(protocol, host);
+        HTTPSocketMessageClient client = getSocketConnection(protocol, host);
         int bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+
+        // If write failed, socket is likely dead - retry once with new connection
+        if (bytesWritten <= 0) {
+            client = recreateConnection(protocol, host);
+            bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        }
+
         return parseResponse(client, bytesWritten);
     }
 
@@ -50,8 +57,15 @@ public class HTTPClient {
             final String headerKey2,
             final String headerValue2
     ) throws IOException {
-        final HTTPSocketMessageClient client = getSocketConnection(protocol, host);
+        HTTPSocketMessageClient client = getSocketConnection(protocol, host);
         int bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+
+        // If write failed, socket is likely dead - retry once with new connection
+        if (bytesWritten <= 0) {
+            client = recreateConnection(protocol, host);
+            bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        }
+
         return parseResponse(client, bytesWritten);
     }
 
@@ -76,16 +90,28 @@ public class HTTPClient {
 
     private HTTPSocketMessageClient getSocketConnection(final HTTPProtocol protocol, final String host) throws IOException {
         if (!socketPool.containsKey(host)) {
-            socketPool.put(host, new HTTPSocketMessageClient(protocol, host));
+            HTTPSocketMessageClient client = new HTTPSocketMessageClient(protocol, host);
+            client.connect();
+            socketPool.put(host, client);
+        }
+        return socketPool.get(host);
+    }
+
+    private HTTPSocketMessageClient recreateConnection(final HTTPProtocol protocol, final String host) throws IOException {
+        HTTPSocketMessageClient oldClient = socketPool.remove(host);
+        if (oldClient != null) {
+            try {
+                oldClient.close();
+            } catch (Exception e) {
+                // Ignore - socket is already dead
+            }
         }
 
-        final var client = socketPool.get(host);
-        if (!client.available()) {
-            this.socketPool.remove(host);
-            return getSocketConnection(protocol, host);
-        } else {
-            return client;
-        }
+        HTTPSocketMessageClient newClient = new HTTPSocketMessageClient(protocol, host);
+        newClient.connect();
+        socketPool.put(host, newClient);
+
+        return newClient;
     }
 
     public HTTPResponse get(
@@ -212,5 +238,12 @@ public class HTTPClient {
             final String headerValue2
     ) throws IOException {
         return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    @Override
+    public void close() throws Exception {
+        for (var key : this.socketPool.keys()) {
+            this.socketPool.remove(key).close();
+        }
     }
 }

@@ -2,9 +2,9 @@ package group.gnometrading.networking.http;
 
 import group.gnometrading.networking.client.AbstractSocketMessageClient;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
-import group.gnometrading.networking.sockets.factory.NetSSLSocketFactory;
+import group.gnometrading.networking.sockets.factory.NativeSSLSocketFactory;
+import group.gnometrading.networking.sockets.factory.NativeSocketFactory;
 import group.gnometrading.strings.GnomeString;
-import sun.nio.ch.IOStatus;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -21,7 +21,11 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     private final String host;
 
     public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host) throws IOException {
-        super(parseURL(host, parsePort(protocol)), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE);
+        this(protocol, host, parsePort(protocol));
+    }
+
+    public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host, final int port) throws IOException {
+        super(parseURL(host, port), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE);
         this.host = host;
         this.httpDecoder = new HTTPDecoder();
         this.httpEncoder = new HTTPEncoder();
@@ -36,7 +40,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     }
 
     private static GnomeSocketFactory parseSocketFactory(final HTTPProtocol protocol) {
-        return protocol == HTTPProtocol.HTTPS ? new NetSSLSocketFactory() : GnomeSocketFactory.getDefault();
+        return protocol == HTTPProtocol.HTTPS ? new NativeSSLSocketFactory() : new NativeSocketFactory();
     }
 
     public int request(
@@ -53,7 +57,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
         this.writeBuffer.flip();
 
-        return IOStatus.normalize(this.socket.write(this.writeBuffer));
+        return this.socket.write(this.writeBuffer);
     }
 
     public int request(
@@ -70,7 +74,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
         this.writeBuffer.flip();
 
-        return IOStatus.normalize(this.socket.write(this.writeBuffer));
+        return this.socket.write(this.writeBuffer);
     }
 
     @Override
@@ -81,11 +85,5 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
 
     public HTTPDecoder getHTTPDecoder() {
         return httpDecoder;
-    }
-
-    public boolean available() throws IOException {
-        // TODO: Use native socket code to check if the socket is still open
-        return true;
-//        return request(HTTPMethod.HEAD, "/", null) >= 0;
     }
 }
