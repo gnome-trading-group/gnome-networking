@@ -6,7 +6,7 @@
     <artifactId>gnome-networking</artifactId>
     <!-- not using Maven release as we need both MacOS and Ubuntu builds -->
     <!-- update this manually... barbaric, I know -->
-    <version>1.0.64</version>
+    <version>1.0.65</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -42,7 +42,7 @@
         <dependency>
             <groupId>group.gnometrading</groupId>
             <artifactId>gnome-core</artifactId>
-            <version>1.2.7</version>
+            <version>1.2.9</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
