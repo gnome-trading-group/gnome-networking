@@ -9,34 +9,29 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public abstract class WebSocketIntegrationTest {
-    protected static final int TEST_PORT = 8080;
     protected static final String TEST_HOST = "127.0.0.1";
     protected static final String TEST_PATH = "/ws";
-    
+
     protected WebSocketServer server;
     protected WebSocketClient client;
     protected ExecutorService serverExecutor;
-    
+
     @BeforeEach
     void setUp() throws Exception {
-        server = new WebSocketServer(TEST_HOST, TEST_PORT);
+        server = new WebSocketServer(TEST_HOST, 0);
         serverExecutor = Executors.newSingleThreadExecutor();
         serverExecutor.submit(server);
-
-        try {
-            Thread.sleep(2_000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        server.awaitReady(5, TimeUnit.SECONDS);
 
         client = new WebSocketClientBuilder()
-            .withURI(new URI("ws://" + TEST_HOST + ":" + TEST_PORT + TEST_PATH))
+            .withURI(new URI("ws://" + TEST_HOST + ":" + server.getPort() + TEST_PATH))
             .withDraft(new RFC6455())
             .build();
     }
-    
+
     @AfterEach
     void tearDown() throws Exception {
         if (client != null) {
@@ -47,6 +42,7 @@ public abstract class WebSocketIntegrationTest {
         }
         if (serverExecutor != null) {
             serverExecutor.shutdown();
+            serverExecutor.awaitTermination(5, TimeUnit.SECONDS);
         }
     }
 } 

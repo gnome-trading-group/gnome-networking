@@ -15,9 +15,8 @@ public class BasicWebSocketIntegrationTest extends WebSocketIntegrationTest {
 
     @Test
     @Timeout(value = 20)
-    void testConnectionAndHandshake() throws Exception {
+    void testConnectionAndHandshake() throws IOException {
         client.connect();
-        Thread.sleep(1_000);
         assertTrue(client.isConnected());
     }
 

@@ -13,17 +13,16 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
 
     @Test
     @Timeout(value = 20)
-    void testBasicConnection() throws IOException, InterruptedException {
-        clientSocket = createClient();
+    void testBasicConnection() throws IOException {
+        clientSocket = createClient(server.getPort());
         clientSocket.connect();
-        Thread.sleep(1_000);
         assertTrue(clientSocket.isConnected());
     }
 
     @Test
     @Timeout(value = 20)
     void testDataExchange() throws IOException {
-        clientSocket = createClient();
+        clientSocket = createClient(server.getPort());
         clientSocket.connect();
 
         byte[] testMessage = "Hello, Socket!".getBytes(StandardCharsets.UTF_8);
@@ -45,7 +44,7 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
     @Test
     @Timeout(value = 20)
     void testConnectionClosure() throws IOException {
-        clientSocket = createClient();
+        clientSocket = createClient(server.getPort());
         clientSocket.connect();
         assertTrue(clientSocket.isConnected());
 
@@ -56,10 +55,8 @@ public abstract class BaseNativeSocketIntegrationTest extends SocketIntegrationT
     @Test
     @Timeout(value = 20)
     void testLargeDataExchange() throws Exception {
-        clientSocket = createClient();
+        clientSocket = createClient(server.getPort());
         clientSocket.connect();
-
-        Thread.sleep(1_000);
 
         // Create a large message (100 kb)
         byte[] largeData = new byte[1024 * 100];

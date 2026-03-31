@@ -8,12 +8,12 @@ import java.io.IOException;
 public class NativeSocketIntegrationTest extends BaseNativeSocketIntegrationTest {
 
     @Override
-    protected GnomeSocket createClient() throws IOException {
-        return new NativeSocketFactory().createSocket(TEST_HOST, 8081);
+    protected GnomeSocket createClient(int port) throws IOException {
+        return new NativeSocketFactory().createSocket(TEST_HOST, port);
     }
 
     @Override
     protected BaseSocketServer createServer() {
-        return new SocketServer(TEST_HOST, 8081);
+        return new SocketServer(TEST_HOST, 0);
     }
 }

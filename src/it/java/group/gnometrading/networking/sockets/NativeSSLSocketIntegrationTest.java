@@ -8,14 +8,14 @@ import java.io.IOException;
 public class NativeSSLSocketIntegrationTest extends BaseNativeSocketIntegrationTest {
 
     @Override
-    protected GnomeSocket createClient() throws IOException {
-        return new NativeSSLSocketFactory().createSocket(TEST_HOST, 8443);
+    protected GnomeSocket createClient(int port) throws IOException {
+        return new NativeSSLSocketFactory().createSocket(TEST_HOST, port);
     }
 
     @Override
     protected BaseSocketServer createServer() {
         try {
-            return new SSLSocketServer(TEST_HOST, 8443, new SSLConfig());
+            return new SSLSocketServer(TEST_HOST, 0, new SSLConfig());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

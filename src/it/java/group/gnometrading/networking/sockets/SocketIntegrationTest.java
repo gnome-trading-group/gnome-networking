@@ -12,26 +12,22 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class SocketIntegrationTest {
     protected static final String TEST_HOST = "127.0.0.1";
-    
+
     protected BaseSocketServer server;
     protected GnomeSocket clientSocket;
     protected ScheduledExecutorService serverExecutor;
 
-    protected abstract GnomeSocket createClient() throws IOException;
+    protected abstract GnomeSocket createClient(int port) throws IOException;
     protected abstract BaseSocketServer createServer();
-    
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws InterruptedException {
         server = createServer();
         serverExecutor = Executors.newSingleThreadScheduledExecutor();
         serverExecutor.schedule(server, 0, TimeUnit.MILLISECONDS);
-        try {
-            Thread.sleep(2_000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        server.awaitReady(5, TimeUnit.SECONDS);
     }
-    
+
     @AfterEach
     void tearDown() throws Exception {
         if (server != null) {
@@ -39,6 +35,7 @@ public abstract class SocketIntegrationTest {
         }
         if (serverExecutor != null) {
             serverExecutor.shutdown();
+            serverExecutor.awaitTermination(5, TimeUnit.SECONDS);
         }
         if (clientSocket != null && clientSocket.isConnected()) {
             clientSocket.close();
