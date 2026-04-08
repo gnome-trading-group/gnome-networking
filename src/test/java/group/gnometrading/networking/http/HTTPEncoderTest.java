@@ -1,5 +1,7 @@
 package group.gnometrading.networking.http;
 
+import group.gnometrading.strings.ViewString;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -89,6 +91,68 @@ class HTTPEncoderTest {
         httpEncoder.encode(httpMethod, path, host, body, headerKey1, headerValue1, headerKey2, headerValue2);
         out.flip();
         assertEquals(expected, String.valueOf(StandardCharsets.UTF_8.decode(out)));
+    }
+
+    @Test
+    void testEncodeWithBodyLengthSendsOnlySpecifiedBytes() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+
+        byte[] oversizedBuffer = "hello world".getBytes(StandardCharsets.UTF_8);
+        encoder.encode(HTTPMethod.POST, "/api", "example.com", oversizedBuffer, 5, null, null, null, null);
+        out.flip();
+
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("Content-Length: 5"));
+        assertTrue(result.endsWith("hello"));
+        assertFalse(result.contains("world"));
+    }
+
+    @Test
+    void testEncodeGnomeStringPathWithBodyLength() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+
+        byte[] oversizedBuffer = "[{\"key\":\"value\"}]EXTRA GARBAGE".getBytes(StandardCharsets.UTF_8);
+        int bodyLength = "[{\"key\":\"value\"}]".length();
+        encoder.encode(HTTPMethod.POST, new ViewString("/api/pnl/snapshots"), "example.com", oversizedBuffer, bodyLength, "x-api-key", "secret", null, null);
+        out.flip();
+
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("Content-Length: " + bodyLength));
+        assertTrue(result.contains("x-api-key: secret"));
+        assertTrue(result.endsWith("[{\"key\":\"value\"}]"));
+        assertFalse(result.contains("EXTRA GARBAGE"));
+    }
+
+    @Test
+    void testEncodeWithoutLengthUsesFullArray() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+
+        byte[] body = "full body".getBytes(StandardCharsets.UTF_8);
+        encoder.encode(HTTPMethod.POST, new ViewString("/path"), "host.com", body, null, null, null, null);
+        out.flip();
+
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("Content-Length: 9"));
+        assertTrue(result.endsWith("full body"));
+    }
+
+    @Test
+    void testEncodeNullBodyProducesNoContentLength() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+
+        encoder.encode(HTTPMethod.GET, new ViewString("/path"), "host.com", null, null, null, null, null);
+        out.flip();
+
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertFalse(result.contains("Content-Length"));
     }
 
     private static String lines(String... lines) {

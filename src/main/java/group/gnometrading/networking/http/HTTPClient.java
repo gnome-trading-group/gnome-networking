@@ -55,15 +55,28 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) throws IOException {
+            final String headerValue2) throws IOException {
+        return request(protocol, host, path, method, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    private HTTPResponse request(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final HTTPMethod method,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) throws IOException {
         HTTPSocketMessageClient client = getSocketConnection(protocol, host);
-        int bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        int bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
 
         // If write failed, socket is likely dead - retry once with new connection
         if (bytesWritten <= 0) {
             client = recreateConnection(protocol, host);
-            bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+            bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
         }
 
         return parseResponse(client, bytesWritten);
@@ -235,9 +248,21 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) throws IOException {
+            final String headerValue2) throws IOException {
         return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 
     @Override

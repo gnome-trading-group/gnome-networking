@@ -50,14 +50,8 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) throws IOException {
-        this.writeBuffer.clear();
-        httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
-        this.writeBuffer.flip();
-
-        return this.socket.write(this.writeBuffer);
+            final String headerValue2) throws IOException {
+        return request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 
     public int request(
@@ -67,11 +61,39 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) throws IOException {
+            final String headerValue2) throws IOException {
+        return request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final String path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) throws IOException {
         this.writeBuffer.clear();
         httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, this.host, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
+        this.writeBuffer.flip();
+
+        return this.socket.write(this.writeBuffer);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) throws IOException {
+        this.writeBuffer.clear();
+        httpEncoder.wrap(this.writeBuffer);
+        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
         this.writeBuffer.flip();
 
         return this.socket.write(this.writeBuffer);

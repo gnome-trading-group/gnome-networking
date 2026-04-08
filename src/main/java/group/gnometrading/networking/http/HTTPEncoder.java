@@ -29,11 +29,11 @@ public class HTTPEncoder {
     private void encodeBody(
             final String host,
             final byte[] body,
+            final int bodyLength,
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) {
+            final String headerValue2) {
         ByteBufferUtils.putString(this.buffer, this.protocol);
         ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
 
@@ -60,13 +60,13 @@ public class HTTPEncoder {
 
         if (body != null) {
             ByteBufferUtils.putString(this.buffer, "Content-Length: ");
-            ByteBufferUtils.putNaturalIntAscii(buffer, body.length);
+            ByteBufferUtils.putNaturalIntAscii(buffer, bodyLength);
             ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
         }
 
         ByteBufferUtils.putString(this.buffer, LINE_SEPARATOR);
         if (body != null) {
-            this.buffer.put(body);
+            this.buffer.put(body, 0, bodyLength);
         }
     }
 
@@ -78,14 +78,8 @@ public class HTTPEncoder {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) {
-        ByteBufferUtils.putString(this.buffer, method.name());
-        this.buffer.put((byte) ' ');
-        ByteBufferUtils.putString(this.buffer, path);
-        this.buffer.put((byte) ' ');
-
-        encodeBody(host, body, headerKey1, headerValue1, headerKey2, headerValue2);
+            final String headerValue2) {
+        encode(method, path, host, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 
     public void encode(
@@ -96,13 +90,43 @@ public class HTTPEncoder {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
-    ) {
+            final String headerValue2) {
+        encode(method, path, host, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public void encode(
+            final HTTPMethod method,
+            final GnomeString path,
+            final String host,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) {
         ByteBufferUtils.putString(this.buffer, method.name());
         this.buffer.put((byte) ' ');
         ByteBufferUtils.putString(this.buffer, path);
         this.buffer.put((byte) ' ');
 
-        encodeBody(host, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        encodeBody(host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
+    }
+
+    public void encode(
+            final HTTPMethod method,
+            final String path,
+            final String host,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2) {
+        ByteBufferUtils.putString(this.buffer, method.name());
+        this.buffer.put((byte) ' ');
+        ByteBufferUtils.putString(this.buffer, path);
+        this.buffer.put((byte) ' ');
+
+        encodeBody(host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 }
