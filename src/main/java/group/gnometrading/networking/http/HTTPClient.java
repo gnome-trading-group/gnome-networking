@@ -13,6 +13,8 @@ import java.nio.ByteBuffer;
  */
 public class HTTPClient implements AutoCloseable {
 
+    private static final int MAX_READ_RETRIES = 10;
+
     private final GnomeMap<String, HTTPSocketMessageClient> socketPool;
     private final HTTPResponse httpResponse;
     private final ByteBuffer body;
@@ -87,7 +89,13 @@ public class HTTPClient implements AutoCloseable {
             return this.httpResponse.update(false, -1, null);
         }
 
-        int message = client.readMessage();
+        int message;
+        int retries = 0;
+        do {
+            message = client.readMessage();
+            retries++;
+        } while (message == 0 && retries < MAX_READ_RETRIES);
+
         if (message <= 0) {
             return this.httpResponse.update(false, message, null);
         }
