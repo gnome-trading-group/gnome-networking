@@ -18,11 +18,23 @@ public class HTTPClient implements AutoCloseable {
     private final GnomeMap<String, HTTPSocketMessageClient> socketPool;
     private final HTTPResponse httpResponse;
     private final ByteBuffer body;
+    private final boolean keepAlive;
+    private final int portOverride;
 
     public HTTPClient() {
+        this(true, 0);
+    }
+
+    public HTTPClient(final boolean keepAlive) {
+        this(keepAlive, 0);
+    }
+
+    HTTPClient(final boolean keepAlive, final int portOverride) {
         this.socketPool = new PooledHashMap<>();
         this.httpResponse = new HTTPResponse();
         this.body = ByteBuffer.allocate(HTTPSocketMessageClient.DEFAULT_HTTP_READ_BUFFER_SIZE);
+        this.keepAlive = keepAlive;
+        this.portOverride = portOverride;
     }
 
     private HTTPResponse request(
@@ -111,15 +123,20 @@ public class HTTPClient implements AutoCloseable {
 
     private HTTPSocketMessageClient getSocketConnection(final HTTPProtocol protocol, final String host) throws IOException {
         if (!socketPool.containsKey(host)) {
-            HTTPSocketMessageClient client = new HTTPSocketMessageClient(protocol, host);
+            final HTTPSocketMessageClient client = portOverride > 0
+                    ? new HTTPSocketMessageClient(protocol, host, portOverride)
+                    : new HTTPSocketMessageClient(protocol, host);
             client.connect();
+            if (keepAlive) {
+                client.setKeepAlive(true);
+            }
             socketPool.put(host, client);
         }
         return socketPool.get(host);
     }
 
     private HTTPSocketMessageClient recreateConnection(final HTTPProtocol protocol, final String host) throws IOException {
-        HTTPSocketMessageClient oldClient = socketPool.remove(host);
+        final HTTPSocketMessageClient oldClient = socketPool.remove(host);
         if (oldClient != null) {
             try {
                 oldClient.close();
@@ -128,8 +145,13 @@ public class HTTPClient implements AutoCloseable {
             }
         }
 
-        HTTPSocketMessageClient newClient = new HTTPSocketMessageClient(protocol, host);
+        final HTTPSocketMessageClient newClient = portOverride > 0
+                ? new HTTPSocketMessageClient(protocol, host, portOverride)
+                : new HTTPSocketMessageClient(protocol, host);
         newClient.connect();
+        if (keepAlive) {
+            newClient.setKeepAlive(true);
+        }
         socketPool.put(host, newClient);
 
         return newClient;
