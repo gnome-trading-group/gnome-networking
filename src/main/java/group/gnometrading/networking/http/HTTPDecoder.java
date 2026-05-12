@@ -2,6 +2,7 @@ package group.gnometrading.networking.http;
 
 import group.gnometrading.strings.ExpandingMutableString;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class HTTPDecoder {
@@ -13,7 +14,7 @@ public class HTTPDecoder {
     private boolean completed;
     private int bodyOffset, status, contentLength;
 
-    public void wrap(final ByteBuffer buffer) {
+    public void wrap(final ByteBuffer buffer) throws IOException {
         this.buffer = buffer;
 
         this.completed = false;
@@ -23,7 +24,7 @@ public class HTTPDecoder {
         parse();
     }
 
-    private void parse() {
+    private void parse() throws IOException {
         if (!parseStatusLine()) {
             return;
         }
@@ -42,13 +43,13 @@ public class HTTPDecoder {
         }
     }
 
-    private boolean parseStatusLine() {
+    private boolean parseStatusLine() throws IOException {
         if (this.buffer.remaining() < 4) {
             return false;
         }
 
         if (this.buffer.get() != 'H' && this.buffer.get() != 'T' && this.buffer.get() != 'T' && this.buffer.get() != 'P') {
-            throw new IllegalStateException("HTTP response is not compliant");
+            throw new IOException("HTTP response is not compliant");
         }
 
         if (!continueThrough((byte) ' ')) return false;

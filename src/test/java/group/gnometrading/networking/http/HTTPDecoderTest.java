@@ -4,6 +4,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 
@@ -26,7 +27,7 @@ class HTTPDecoderTest {
 
     @ParameterizedTest
     @MethodSource("testBasicResponsesArguments")
-    void testBasicResponses(String http, boolean isCompleted, int status, int contentLength, int length) {
+    void testBasicResponses(String http, boolean isCompleted, int status, int contentLength, int length) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(http.getBytes());
 
         HTTPDecoder decoder = new HTTPDecoder();
@@ -50,7 +51,7 @@ class HTTPDecoderTest {
 
     @ParameterizedTest
     @MethodSource("testBodyArguments")
-    void testBody(String http, byte[] body) {
+    void testBody(String http, byte[] body) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(http.getBytes());
 
         HTTPDecoder decoder = new HTTPDecoder();

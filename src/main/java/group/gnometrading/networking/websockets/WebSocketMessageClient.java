@@ -57,7 +57,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
     }
 
     @Override
-    public boolean isCompleteMessage(final ByteBuffer byteBuffer) {
+    public boolean isCompleteMessage(final ByteBuffer byteBuffer) throws IOException {
         this.readFrame.wrap(byteBuffer);
         final boolean complete = !this.readFrame.isIncomplete();
         if (complete) {

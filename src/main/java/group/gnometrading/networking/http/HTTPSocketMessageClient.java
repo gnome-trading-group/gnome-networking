@@ -100,7 +100,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     }
 
     @Override
-    public boolean isCompleteMessage(final ByteBuffer byteBuffer) {
+    public boolean isCompleteMessage(final ByteBuffer byteBuffer) throws IOException {
         this.httpDecoder.wrap(byteBuffer);
         return this.httpDecoder.isComplete();
     }
