@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 class WebSocketMessageClient extends AbstractSocketMessageClient {
 
@@ -19,6 +21,7 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
     private final URI uri;
     private final Draft draft;
     public final DataFrame readFrame, writeFrame;
+    private Map<String, String> headers = null;
 
     WebSocketMessageClient(
             URI uri,
@@ -39,8 +42,15 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         return new InetSocketAddress(uri.getHost(), port);
     }
     
+    void setHeader(String key, String value) {
+        if (this.headers == null) {
+            this.headers = new HashMap<>();
+        }
+        this.headers.put(key, value);
+    }
+
     protected void sendHandshake() {
-        HandshakeInput input = new HandshakeInput(this.uri);
+        HandshakeInput input = new HandshakeInput(this.uri, this.headers);
         HandshakeHandler.attemptHandshake(this, this.draft, input);
     }
 

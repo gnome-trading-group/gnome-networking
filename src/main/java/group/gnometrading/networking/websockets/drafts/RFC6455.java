@@ -9,6 +9,7 @@ import group.gnometrading.networking.websockets.frames.DataFrame6455;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.random.RandomGenerator;
 
 public class RFC6455 extends Draft {
@@ -27,7 +28,6 @@ public class RFC6455 extends Draft {
         builder.append("Connection: Upgrade\r\n");
         builder.append("Sec-WebSocket-Key: %s\r\n");
         builder.append("Sec-WebSocket-Version: 13\r\n");
-        builder.append("\r\n");
 
         TEMPLATE = builder.toString();
     }
@@ -55,7 +55,14 @@ public class RFC6455 extends Draft {
         if (!input.uri.getPath().isEmpty()) {
             path = input.uri.getPath();
         }
-        return String.format(TEMPLATE, path, input.uri.getHost(), websocketKey).getBytes(StandardCharsets.UTF_8);
+        StringBuilder sb = new StringBuilder(String.format(TEMPLATE, path, input.uri.getHost(), websocketKey));
+        if (input.headers != null) {
+            for (Map.Entry<String, String> entry : input.headers.entrySet()) {
+                sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+            }
+        }
+        sb.append("\r\n");
+        return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     @Override

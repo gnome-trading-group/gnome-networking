@@ -3,6 +3,7 @@ package group.gnometrading.networking.websockets.drafts;
 import group.gnometrading.networking.websockets.HandshakeInput;
 import group.gnometrading.networking.websockets.enums.HandshakeState;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -10,6 +11,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.random.RandomGenerator;
 import java.util.stream.Stream;
 
@@ -79,6 +82,56 @@ class RFC6455Test {
     void testParseInvalidHandshake(String response, HandshakeState expectedState) {
         ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
         assertEquals(expectedState, rfc6455.parseHandshake(buffer));
+    }
+
+    @Test
+    void testCreateHandshakeWithExtraHeaders() {
+        byte[] randomBytes = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                               0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
+        doAnswer(invocation -> {
+            byte[] bytes = invocation.getArgument(0);
+            System.arraycopy(randomBytes, 0, bytes, 0, bytes.length);
+            return null;
+        }).when(mockRandom).nextBytes(any(byte[].class));
+
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Api-Key", "my-key");
+        headers.put("X-Timestamp", "1234567890");
+
+        HandshakeInput input = new HandshakeInput(URI.create("wss://example.com/ws"), headers);
+        byte[] handshake = rfc6455.createHandshake(input);
+        String request = new String(handshake);
+
+        assertTrue(request.contains("X-Api-Key: my-key\r\n"));
+        assertTrue(request.contains("X-Timestamp: 1234567890\r\n"));
+        assertTrue(request.endsWith("\r\n\r\n"));
+
+        // Extra headers must appear after standard headers and before the blank line
+        int versionIdx = request.indexOf("Sec-WebSocket-Version: 13\r\n");
+        int apiKeyIdx = request.indexOf("X-Api-Key: my-key\r\n");
+        int timestampIdx = request.indexOf("X-Timestamp: 1234567890\r\n");
+        int terminator = request.lastIndexOf("\r\n\r\n");
+        assertTrue(apiKeyIdx > versionIdx);
+        assertTrue(timestampIdx > apiKeyIdx);
+        assertTrue(terminator > timestampIdx);
+    }
+
+    @Test
+    void testCreateHandshakeWithNullHeaders() {
+        byte[] randomBytes = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                               0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
+        doAnswer(invocation -> {
+            byte[] bytes = invocation.getArgument(0);
+            System.arraycopy(randomBytes, 0, bytes, 0, bytes.length);
+            return null;
+        }).when(mockRandom).nextBytes(any(byte[].class));
+
+        HandshakeInput input = new HandshakeInput(URI.create("wss://example.com/ws"));
+        byte[] handshake = rfc6455.createHandshake(input);
+        String request = new String(handshake);
+
+        assertTrue(request.endsWith("\r\n\r\n"));
+        assertTrue(request.contains("Sec-WebSocket-Version: 13\r\n\r\n"));
     }
 
     private static Stream<Arguments> provideHandshakeCases() {

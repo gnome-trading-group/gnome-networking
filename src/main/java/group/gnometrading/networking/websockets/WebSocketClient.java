@@ -120,6 +120,10 @@ public class WebSocketClient {
         this.messageClient.clearBuffers();
     }
 
+    public void setHeader(String key, String value) {
+        this.messageClient.setHeader(key, value);
+    }
+
     public void setKeepAlive(boolean on) throws IOException {
         this.messageClient.setKeepAlive(on);
     }
