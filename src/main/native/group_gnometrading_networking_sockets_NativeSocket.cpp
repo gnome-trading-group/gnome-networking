@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <iostream>
 
@@ -274,6 +275,16 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_s
     int optval = on ? 1 : 0;
     if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0) {
         JNU_ThrowIOExceptionWithLastError(env, "Set TCP no delay failed");
+    }
+}
+
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setReadTimeout0
+  (JNIEnv* env, jobject obj, jint fd, jint millis) {
+    struct timeval tv;
+    tv.tv_sec = millis / 1000;
+    tv.tv_usec = (millis % 1000) * 1000;
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set read timeout failed");
     }
 }
 

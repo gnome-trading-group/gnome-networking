@@ -143,4 +143,12 @@ public class NativeSocket implements GnomeSocket {
     }
 
     private native void setTcpNoDelay0(int fd, boolean on) throws IOException;
+
+    @Override
+    public void setReadTimeout(int millis) throws IOException {
+        ensureConnected();
+        setReadTimeout0(fd, millis);
+    }
+
+    private native void setReadTimeout0(int fd, int millis) throws IOException;
 }

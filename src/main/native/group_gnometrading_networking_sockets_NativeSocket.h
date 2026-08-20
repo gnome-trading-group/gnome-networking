@@ -95,6 +95,14 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_s
 JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setTcpNoDelay0
   (JNIEnv *, jobject, jint, jboolean);
 
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setReadTimeout0
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setReadTimeout0
+  (JNIEnv *, jobject, jint, jint);
+
 #ifdef __cplusplus
 }
 #endif

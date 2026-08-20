@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -324,6 +325,17 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
     int optval = on ? 1 : 0;
     if (setsockopt(state->socket_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0) {
         JNU_ThrowIOExceptionWithLastError(env, "Set TCP no delay failed");
+    }
+}
+
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setReadTimeout0
+  (JNIEnv* env, jobject obj, jlong handle, jint millis) {
+    SSLSocketState *state = (SSLSocketState *)handle;
+    struct timeval tv;
+    tv.tv_sec = millis / 1000;
+    tv.tv_usec = (millis % 1000) * 1000;
+    if (setsockopt(state->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "Set read timeout failed");
     }
 }
 

@@ -143,6 +143,47 @@ class HTTPEncoderTest {
     }
 
     @Test
+    void testEncodeDeleteMethod() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+        encoder.encode(HTTPMethod.DELETE, "/orders/123", "exchange.com", null, "x-api-key", "secret", null, null);
+        out.flip();
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.startsWith("DELETE /orders/123 HTTP/1.1\r\n"));
+        assertTrue(result.contains("x-api-key: secret"));
+        assertFalse(result.contains("Content-Length"));
+    }
+
+    @Test
+    void testEncodePutMethodWithBody() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+        byte[] body = "{\"qty\":1}".getBytes(StandardCharsets.UTF_8);
+        encoder.encode(HTTPMethod.PUT, "/orders/123", "exchange.com", body, "Content-Type", "application/json", null, null);
+        out.flip();
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.startsWith("PUT /orders/123 HTTP/1.1\r\n"));
+        assertTrue(result.contains("Content-Length: " + body.length));
+        assertTrue(result.endsWith("{\"qty\":1}"));
+    }
+
+    @Test
+    void testEncodeThreeHeaders() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+        encoder.encode(HTTPMethod.DELETE, "/orders/123", "exchange.com", null, 0,
+                "x-api-key", "mykey", "x-timestamp", "1234567890", "x-signature", "abc123");
+        out.flip();
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("x-api-key: mykey"));
+        assertTrue(result.contains("x-timestamp: 1234567890"));
+        assertTrue(result.contains("x-signature: abc123"));
+    }
+
+    @Test
     void testEncodeNullBodyProducesNoContentLength() {
         HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
         ByteBuffer out = ByteBuffer.allocate(10000);

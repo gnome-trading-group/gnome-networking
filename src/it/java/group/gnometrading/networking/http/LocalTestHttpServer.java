@@ -85,7 +85,8 @@ class LocalTestHttpServer implements AutoCloseable {
 
                 final String headerStr = new String(buf, 0, pos);
 
-                if (!headerStr.startsWith("GET ") && !headerStr.startsWith("POST ")) {
+                if (!headerStr.startsWith("GET ") && !headerStr.startsWith("POST ")
+                        && !headerStr.startsWith("DELETE ") && !headerStr.startsWith("PUT ")) {
                     return;
                 }
 

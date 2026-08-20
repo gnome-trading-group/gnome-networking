@@ -34,7 +34,9 @@ public class HTTPDecoder {
         }
 
         if (this.contentLength == -1) {
-            return; // We did not have a Content-Length header
+            this.contentLength = 0;
+            this.completed = true;
+            return;
         }
 
         this.completed = this.buffer.remaining() >= this.contentLength;
@@ -48,7 +50,7 @@ public class HTTPDecoder {
             return false;
         }
 
-        if (this.buffer.get() != 'H' && this.buffer.get() != 'T' && this.buffer.get() != 'T' && this.buffer.get() != 'P') {
+        if (this.buffer.get() != 'H' || this.buffer.get() != 'T' || this.buffer.get() != 'T' || this.buffer.get() != 'P') {
             throw new IOException("HTTP response is not compliant");
         }
 

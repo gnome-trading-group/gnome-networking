@@ -13,13 +13,15 @@ import java.nio.ByteBuffer;
  */
 public class HTTPClient implements AutoCloseable {
 
-    private static final int MAX_READ_RETRIES = 10;
+    private static final int MAX_READ_RETRIES = 3;
+    static final int DEFAULT_READ_TIMEOUT_MS = 10_000;
 
     private final GnomeMap<String, HTTPSocketMessageClient> socketPool;
     private final HTTPResponse httpResponse;
     private final ByteBuffer body;
     private final boolean keepAlive;
     private final int portOverride;
+    private final int readTimeoutMs;
 
     public HTTPClient() {
         this(true, 0);
@@ -30,11 +32,16 @@ public class HTTPClient implements AutoCloseable {
     }
 
     HTTPClient(final boolean keepAlive, final int portOverride) {
+        this(keepAlive, portOverride, DEFAULT_READ_TIMEOUT_MS);
+    }
+
+    HTTPClient(final boolean keepAlive, final int portOverride, final int readTimeoutMs) {
         this.socketPool = new PooledHashMap<>();
         this.httpResponse = new HTTPResponse();
         this.body = ByteBuffer.allocate(HTTPSocketMessageClient.DEFAULT_HTTP_READ_BUFFER_SIZE);
         this.keepAlive = keepAlive;
         this.portOverride = portOverride;
+        this.readTimeoutMs = readTimeoutMs;
     }
 
     private HTTPResponse request(
@@ -46,31 +53,19 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
     ) throws IOException {
         HTTPSocketMessageClient client = getSocketConnection(protocol, host);
-        int bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        int bytesWritten = client.request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
 
-        // If write failed, socket is likely dead - retry once with new connection
         if (bytesWritten <= 0) {
             client = recreateConnection(protocol, host);
-            bytesWritten = client.request(method, path, body, headerKey1, headerValue1, headerKey2, headerValue2);
+            bytesWritten = client.request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
         }
 
         return parseResponse(client, bytesWritten);
-    }
-
-    private HTTPResponse request(
-            final HTTPProtocol protocol,
-            final String host,
-            final GnomeString path,
-            final HTTPMethod method,
-            final byte[] body,
-            final String headerKey1,
-            final String headerValue1,
-            final String headerKey2,
-            final String headerValue2) throws IOException {
-        return request(protocol, host, path, method, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2);
     }
 
     private HTTPResponse request(
@@ -83,14 +78,15 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1,
             final String headerKey2,
-            final String headerValue2) throws IOException {
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3) throws IOException {
         HTTPSocketMessageClient client = getSocketConnection(protocol, host);
-        int bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
+        int bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
 
-        // If write failed, socket is likely dead - retry once with new connection
         if (bytesWritten <= 0) {
             client = recreateConnection(protocol, host);
-            bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
+            bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
         }
 
         return parseResponse(client, bytesWritten);
@@ -118,7 +114,16 @@ public class HTTPClient implements AutoCloseable {
             this.body.flip();
         }
 
-        return this.httpResponse.update(client.getHTTPDecoder().getStatus() == 200, client.getHTTPDecoder().getStatus(), this.body);
+        int status = client.getHTTPDecoder().getStatus();
+        return this.httpResponse.update(status >= 200 && status < 300, status, this.body);
+    }
+
+    public void connect(final HTTPProtocol protocol, final String host) throws IOException {
+        getSocketConnection(protocol, host);
+    }
+
+    public void reconnect(final HTTPProtocol protocol, final String host) throws IOException {
+        recreateConnection(protocol, host);
     }
 
     private HTTPSocketMessageClient getSocketConnection(final HTTPProtocol protocol, final String host) throws IOException {
@@ -130,6 +135,8 @@ public class HTTPClient implements AutoCloseable {
             if (keepAlive) {
                 client.setKeepAlive(true);
             }
+            client.setTcpNoDelay(true);
+            client.setReadTimeout(readTimeoutMs);
             socketPool.put(host, client);
         }
         return socketPool.get(host);
@@ -152,17 +159,21 @@ public class HTTPClient implements AutoCloseable {
         if (keepAlive) {
             newClient.setKeepAlive(true);
         }
+        newClient.setTcpNoDelay(true);
+        newClient.setReadTimeout(readTimeoutMs);
         socketPool.put(host, newClient);
 
         return newClient;
     }
+
+    // GET — String path
 
     public HTTPResponse get(
             final HTTPProtocol protocol,
             final String host,
             final String path
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, null, null, null, null);
+        return request(protocol, host, path, HTTPMethod.GET, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -172,7 +183,7 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null);
+        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -184,15 +195,31 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey2,
             final String headerValue2
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2);
+        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
     }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // GET — GnomeString path
 
     public HTTPResponse get(
             final HTTPProtocol protocol,
             final String host,
             final GnomeString path
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, null, null, null, null);
+        return request(protocol, host, path, HTTPMethod.GET, null, 0, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -202,7 +229,7 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null);
+        return request(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -214,8 +241,24 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey2,
             final String headerValue2
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2);
+        return request(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
     }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // POST — String path
 
     public HTTPResponse post(
             final HTTPProtocol protocol,
@@ -223,7 +266,7 @@ public class HTTPClient implements AutoCloseable {
             final String path,
             final byte[] body
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, null, null, null, null);
+        return request(protocol, host, path, HTTPMethod.POST, body, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -234,7 +277,7 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null);
+        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -247,8 +290,25 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey2,
             final String headerValue2
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
     }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // POST — GnomeString path
 
     public HTTPResponse post(
             final HTTPProtocol protocol,
@@ -256,7 +316,7 @@ public class HTTPClient implements AutoCloseable {
             final GnomeString path,
             final byte[] body
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, null, null, null, null);
+        return request(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -267,7 +327,7 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey1,
             final String headerValue1
     ) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null);
+        return request(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -279,7 +339,7 @@ public class HTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2);
+        return request(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
     }
 
     public HTTPResponse post(
@@ -292,13 +352,267 @@ public class HTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return request(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2);
+        return request(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3) throws IOException {
+        return request(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // DELETE — String path
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, null, null, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // DELETE — GnomeString path
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, 0, null, null, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // PUT — String path
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, null, null, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    // PUT — GnomeString path
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, null, null, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
     }
 
     @Override
     public void close() throws Exception {
         for (var key : this.socketPool.keys()) {
-            this.socketPool.remove(key).close();
+            try {
+                this.socketPool.get(key).close();
+            } catch (Exception ignored) {
+            }
         }
     }
 }

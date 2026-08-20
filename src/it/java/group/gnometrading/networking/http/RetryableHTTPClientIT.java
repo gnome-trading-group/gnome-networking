@@ -79,6 +79,74 @@ class RetryableHTTPClientIT {
     }
 
     @Test
+    void deleteRequestSucceeds() throws Exception {
+        try (LocalTestHttpServer server = new LocalTestHttpServer()) {
+            final int port = server.getPort();
+            final RetryableHTTPClient client = new RetryableHTTPClient(
+                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+
+            final HTTPResponse response = client.delete(HTTPProtocol.HTTP, "localhost", TEST_PATH);
+            assertTrue(response.isSuccess());
+            assertEquals(200, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void putRequestSucceeds() throws Exception {
+        try (LocalTestHttpServer server = new LocalTestHttpServer()) {
+            final int port = server.getPort();
+            final RetryableHTTPClient client = new RetryableHTTPClient(
+                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+
+            byte[] body = "{\"qty\":5}".getBytes();
+            final HTTPResponse response = client.put(HTTPProtocol.HTTP, "localhost", TEST_PATH, body);
+            assertTrue(response.isSuccess());
+            assertEquals(200, response.getStatusCode());
+        }
+    }
+
+    private static final byte[] HTTP_201 = (
+            "HTTP/1.1 201 Created\r\n"
+            + "Content-Type: application/json\r\n"
+            + "Content-Length: 0\r\n"
+            + "Connection: keep-alive\r\n"
+            + "\r\n"
+    ).getBytes();
+
+    private static final byte[] HTTP_204 = (
+            "HTTP/1.1 204 No Content\r\n"
+            + "Connection: keep-alive\r\n"
+            + "\r\n"
+    ).getBytes();
+
+    @Test
+    void status201IsNotRetried() throws Exception {
+        // Server only has one response queued — if client retries it will get nothing and fail
+        try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_201)) {
+            final int port = server.getPort();
+            final RetryableHTTPClient client = new RetryableHTTPClient(
+                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+
+            final HTTPResponse response = client.post(HTTPProtocol.HTTP, "localhost", TEST_PATH, new byte[0]);
+            assertTrue(response.isSuccess(), "201 should be treated as success, not retried");
+            assertEquals(201, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void status204DeleteIsNotRetried() throws Exception {
+        try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_204)) {
+            final int port = server.getPort();
+            final RetryableHTTPClient client = new RetryableHTTPClient(
+                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+
+            final HTTPResponse response = client.delete(HTTPProtocol.HTTP, "localhost", TEST_PATH);
+            assertTrue(response.isSuccess(), "204 should be treated as success");
+            assertEquals(204, response.getStatusCode());
+        }
+    }
+
+    @Test
     void idleReconnect() throws Exception {
         // Controllable clock: start at 0, jump past threshold to trigger idle reconnect
         final long[] currentTime = {0L};
@@ -173,7 +241,8 @@ class RetryableHTTPClientIT {
 
                     final String headerStr = new String(buf, 0, pos);
 
-                    if (!headerStr.startsWith("GET ") && !headerStr.startsWith("POST ")) {
+                    if (!headerStr.startsWith("GET ") && !headerStr.startsWith("POST ")
+                            && !headerStr.startsWith("DELETE ") && !headerStr.startsWith("PUT ")) {
                         return;
                     }
 

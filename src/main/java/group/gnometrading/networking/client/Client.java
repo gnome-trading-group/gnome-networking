@@ -54,4 +54,6 @@ public interface Client extends AutoCloseable {
     void setKeepAlive(boolean on) throws IOException;
 
     void setTcpNoDelay(boolean on) throws IOException;
+
+    void setReadTimeout(int millis) throws IOException;
 }

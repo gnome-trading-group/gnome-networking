@@ -1,5 +1,6 @@
 package group.gnometrading.networking.http;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -17,7 +18,7 @@ class HTTPDecoderTest {
                 Arguments.of("", false, -1, -1, -1),
                 Arguments.of("HTTP/1.1 200", false, -1, -1, -1),
                 Arguments.of("HTTP/1.1 200 Success", false, -1, -1, -1),
-                Arguments.of(lines("HTTP/1.1 200 Success"), false, -1, -1, -1),
+                Arguments.of(lines("HTTP/1.1 200 Success"), true, 200, 0, 24),
                 Arguments.of(lines("HTTP/1.1 200 Success", "Content-Length: 0"), true, 200, 0, 43),
                 Arguments.of(lines("HTTP/1.1 200 Success", "Content-Length: 0", "Accept: gzip"), true, 200, 0, 57),
                 Arguments.of(lines("HTTP/1.1 201 Success", "Content-Length: 0", "Accept: gzip"), true, 201, 0, 57),
@@ -37,7 +38,9 @@ class HTTPDecoderTest {
         if (isCompleted) {
             assertEquals(status, decoder.getStatus());
             assertEquals(contentLength, decoder.contentLength());
-            assertEquals(length, decoder.length());
+            if (contentLength >= 0) {
+                assertEquals(length, decoder.length());
+            }
         }
     }
 
@@ -65,6 +68,124 @@ class HTTPDecoderTest {
         for (int i = 0; i < body.length; i++) {
             assertEquals(body[i], destination.get(i));
         }
+    }
+
+    @Test
+    void testNoContentLengthHeaderCompletesSuccessfully() throws IOException {
+        // 204 No Content pattern — no Content-Length header
+        String response = lines("HTTP/1.1 204 No Content");
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals(204, decoder.getStatus());
+        assertEquals(0, decoder.contentLength());
+    }
+
+    @Test
+    void testStatusOnlyResponseCompletesSuccessfully() throws IOException {
+        // Response with only status and blank line (no headers at all)
+        String response = lines("HTTP/1.1 200 OK");
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals(200, decoder.getStatus());
+        assertEquals(0, decoder.contentLength());
+    }
+
+    @Test
+    void testMalformedStatusLineThrows() {
+        // Does not start with HTTP
+        String response = "XTTP/1.1 200 OK\r\n\r\n";
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        assertThrows(IOException.class, () -> decoder.wrap(buffer));
+    }
+
+    @Test
+    void testDecoderResetBetweenResponses() throws IOException {
+        HTTPDecoder decoder = new HTTPDecoder();
+
+        String first = lines("HTTP/1.1 200 OK", "Content-Length: 0");
+        decoder.wrap(ByteBuffer.wrap(first.getBytes()));
+        assertTrue(decoder.isComplete());
+        assertEquals(200, decoder.getStatus());
+
+        String second = lines("HTTP/1.1 201 Created", "Content-Length: 0");
+        decoder.wrap(ByteBuffer.wrap(second.getBytes()));
+        assertTrue(decoder.isComplete());
+        assertEquals(201, decoder.getStatus());
+    }
+
+    @Test
+    void testPartialHeadersNotComplete() throws IOException {
+        // Response cut off mid-header — should not be complete
+        String partial = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n";
+        ByteBuffer buffer = ByteBuffer.wrap(partial.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertFalse(decoder.isComplete());
+    }
+
+    @Test
+    void test2xxStatusCodesParseCorrectly() throws IOException {
+        int[] statuses = {200, 201, 202, 204};
+        for (int status : statuses) {
+            String response = lines("HTTP/1.1 " + status + " OK");
+            ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+            HTTPDecoder decoder = new HTTPDecoder();
+            decoder.wrap(buffer);
+            assertTrue(decoder.isComplete(), "Expected complete for status " + status);
+            assertEquals(status, decoder.getStatus());
+        }
+    }
+
+    @Test
+    void test500ResponseParsesCorrectly() throws IOException {
+        String response = lines("HTTP/1.1 500 Internal Server Error", "Content-Length: 0");
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals(500, decoder.getStatus());
+        assertEquals(0, decoder.contentLength());
+    }
+
+    @Test
+    void testContentLengthLargerThanActualBody() throws IOException {
+        // Headers claim 100 bytes but only 10 are present — decoder must stay incomplete
+        String headers = "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n";
+        String partial = headers + "0123456789";
+        ByteBuffer buffer = ByteBuffer.wrap(partial.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertFalse(decoder.isComplete(), "Decoder should not be complete when body is shorter than Content-Length");
+        assertEquals(100, decoder.contentLength());
+    }
+
+    @Test
+    void testZeroContentLengthWithTrailingBytes() throws IOException {
+        // Content-Length: 0 — any bytes after the blank line are not part of the response
+        String response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\nextra";
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals(0, decoder.contentLength());
     }
 
     private static String lines(String... lines) {

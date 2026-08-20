@@ -143,6 +143,11 @@ public class SocketClient implements Client {
     }
 
     @Override
+    public void setReadTimeout(int millis) throws IOException {
+        this.socket.setReadTimeout(millis);
+    }
+
+    @Override
     public int getReadBufferSize() {
         return this.readBufferSize;
     }

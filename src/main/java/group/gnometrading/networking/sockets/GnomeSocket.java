@@ -46,4 +46,8 @@ public interface GnomeSocket extends AutoCloseable {
     default void setTcpNoDelay(boolean on) throws IOException {
         throw new UnsupportedOperationException("Socket does not support TCP no delay");
     }
+
+    default void setReadTimeout(int millis) throws IOException {
+        throw new UnsupportedOperationException("Socket does not support read timeout");
+    }
 }
