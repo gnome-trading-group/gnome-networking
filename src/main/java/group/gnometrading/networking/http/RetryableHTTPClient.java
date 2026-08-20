@@ -69,17 +69,21 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerKey2,
             final String headerValue2,
             final String headerKey3,
-            final String headerValue3) throws IOException {
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
         maybeReconnect(protocol, host);
         IOException lastException = null;
         HTTPResponse lastResponse = null;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 lastResponse = switch (method) {
-                    case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case POST -> httpClient.post(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case PUT -> httpClient.put(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+                    case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case POST -> httpClient.post(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case PUT -> httpClient.put(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     default -> throw new IllegalStateException("Unsupported method: " + method);
                 };
                 lastRequestTimeMs = clock.time();
@@ -110,17 +114,21 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerKey2,
             final String headerValue2,
             final String headerKey3,
-            final String headerValue3) throws IOException {
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
         maybeReconnect(protocol, host);
         IOException lastException = null;
         HTTPResponse lastResponse = null;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 lastResponse = switch (method) {
-                    case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case POST -> httpClient.post(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
-                    case PUT -> httpClient.put(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+                    case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case POST -> httpClient.post(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+                    case PUT -> httpClient.put(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     default -> throw new IllegalStateException("Unsupported method: " + method);
                 };
                 lastRequestTimeMs = clock.time();
@@ -149,7 +157,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final HTTPProtocol protocol,
             final String host,
             final String path) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -158,7 +166,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String path,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -169,7 +177,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -182,7 +190,39 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // GET — GnomeString path
@@ -191,7 +231,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final HTTPProtocol protocol,
             final String host,
             final GnomeString path) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -200,7 +240,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final GnomeString path,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -211,7 +251,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse get(
@@ -224,7 +264,39 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse get(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.GET, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // POST — String path
@@ -234,7 +306,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String host,
             final String path,
             final byte[] body) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -244,7 +316,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final byte[] body,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -256,7 +328,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -270,7 +342,41 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // POST — GnomeString path
@@ -280,7 +386,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String host,
             final GnomeString path,
             final byte[] body) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -290,7 +396,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final byte[] body,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -302,7 +408,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -315,7 +421,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -329,7 +435,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
     }
 
     public HTTPResponse post(
@@ -344,7 +450,77 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+    }
+
+    public HTTPResponse post(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.POST, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // DELETE — String path
@@ -353,7 +529,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final HTTPProtocol protocol,
             final String host,
             final String path) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -362,7 +538,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String path,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -373,7 +549,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -386,7 +562,39 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // DELETE — GnomeString path
@@ -395,7 +603,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final HTTPProtocol protocol,
             final String host,
             final GnomeString path) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -404,7 +612,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final GnomeString path,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -415,7 +623,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse delete(
@@ -428,7 +636,39 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // PUT — String path
@@ -438,7 +678,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String host,
             final String path,
             final byte[] body) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -448,7 +688,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final byte[] body,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -460,7 +700,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -474,7 +714,41 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final String path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     // PUT — GnomeString path
@@ -484,7 +758,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String host,
             final GnomeString path,
             final byte[] body) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, null, null, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, null, null, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -494,7 +768,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final byte[] body,
             final String headerKey1,
             final String headerValue1) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, null, null, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -506,7 +780,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -519,7 +793,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue1,
             final String headerKey2,
             final String headerValue2) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, null, null, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -534,7 +808,7 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
     }
 
     public HTTPResponse put(
@@ -548,7 +822,77 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
-        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+    }
+
+    public HTTPResponse put(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        return retryRequest(protocol, host, path, HTTPMethod.PUT, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
     @Override

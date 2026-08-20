@@ -175,6 +175,48 @@ class HTTPClientIT {
     }
 
     @Test
+    void fourHeadersAreSentToServer() throws Exception {
+        final AtomicReference<String> capturedHeaders = new AtomicReference<>();
+        try (HeaderCapturingServer server = new HeaderCapturingServer(HTTP_200, capturedHeaders)) {
+            final HTTPClient client = new HTTPClient(true, server.getPort());
+            client.delete(HTTPProtocol.HTTP, "localhost", "/orders/123",
+                    "x-api-key", "mykey",
+                    "x-timestamp", "1700000000",
+                    "x-signature", "deadbeef",
+                    "x-nonce", "42");
+
+            String headers = capturedHeaders.get();
+            assertNotNull(headers);
+            assertTrue(headers.contains("x-api-key: mykey"), "Missing x-api-key header");
+            assertTrue(headers.contains("x-timestamp: 1700000000"), "Missing x-timestamp header");
+            assertTrue(headers.contains("x-signature: deadbeef"), "Missing x-signature header");
+            assertTrue(headers.contains("x-nonce: 42"), "Missing x-nonce header");
+        }
+    }
+
+    @Test
+    void fiveHeadersAreSentToServer() throws Exception {
+        final AtomicReference<String> capturedHeaders = new AtomicReference<>();
+        try (HeaderCapturingServer server = new HeaderCapturingServer(HTTP_200, capturedHeaders)) {
+            final HTTPClient client = new HTTPClient(true, server.getPort());
+            client.delete(HTTPProtocol.HTTP, "localhost", "/orders/123",
+                    "x-api-key", "mykey",
+                    "x-timestamp", "1700000000",
+                    "x-signature", "deadbeef",
+                    "x-nonce", "42",
+                    "Accept", "application/json");
+
+            String headers = capturedHeaders.get();
+            assertNotNull(headers);
+            assertTrue(headers.contains("x-api-key: mykey"), "Missing x-api-key header");
+            assertTrue(headers.contains("x-timestamp: 1700000000"), "Missing x-timestamp header");
+            assertTrue(headers.contains("x-signature: deadbeef"), "Missing x-signature header");
+            assertTrue(headers.contains("x-nonce: 42"), "Missing x-nonce header");
+            assertTrue(headers.contains("Accept: application/json"), "Missing Accept header");
+        }
+    }
+
+    @Test
     void preWarmingEstablishesConnectionBeforeRequest() throws Exception {
         try (LocalTestHttpServer server = new LocalTestHttpServer()) {
             final HTTPClient client = new HTTPClient(true, server.getPort());

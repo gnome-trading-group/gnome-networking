@@ -101,9 +101,73 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
             final String headerValue2,
             final String headerKey3,
             final String headerValue3) throws IOException {
+        return request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3) throws IOException {
+        return request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, null, null);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final String path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4) throws IOException {
+        return request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, null, null);
+    }
+
+    public int request(
+            final HTTPMethod method,
+            final String path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
         this.writeBuffer.clear();
         httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
         this.writeBuffer.flip();
 
         return this.socket.write(this.writeBuffer);
@@ -119,10 +183,14 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
             final String headerKey2,
             final String headerValue2,
             final String headerKey3,
-            final String headerValue3) throws IOException {
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
         this.writeBuffer.clear();
         httpEncoder.wrap(this.writeBuffer);
-        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3);
+        httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
         this.writeBuffer.flip();
 
         return this.socket.write(this.writeBuffer);

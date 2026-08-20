@@ -184,6 +184,37 @@ class HTTPEncoderTest {
     }
 
     @Test
+    void testEncodeFourHeaders() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+        encoder.encode(HTTPMethod.GET, "/orders", "exchange.com", null, 0,
+                "x-api-key", "mykey", "x-timestamp", "1234567890", "x-signature", "abc123", "x-nonce", "999");
+        out.flip();
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("x-api-key: mykey"));
+        assertTrue(result.contains("x-timestamp: 1234567890"));
+        assertTrue(result.contains("x-signature: abc123"));
+        assertTrue(result.contains("x-nonce: 999"));
+    }
+
+    @Test
+    void testEncodeFiveHeaders() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+        encoder.encode(HTTPMethod.GET, "/orders", "exchange.com", null, 0,
+                "x-api-key", "mykey", "x-timestamp", "1234567890", "x-signature", "abc123", "x-nonce", "999", "Accept", "application/json");
+        out.flip();
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.contains("x-api-key: mykey"));
+        assertTrue(result.contains("x-timestamp: 1234567890"));
+        assertTrue(result.contains("x-signature: abc123"));
+        assertTrue(result.contains("x-nonce: 999"));
+        assertTrue(result.contains("Accept: application/json"));
+    }
+
+    @Test
     void testEncodeNullBodyProducesNoContentLength() {
         HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
         ByteBuffer out = ByteBuffer.allocate(10000);
