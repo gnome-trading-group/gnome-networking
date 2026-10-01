@@ -215,6 +215,25 @@ class HTTPEncoderTest {
     }
 
     @Test
+    void testEncodeDeleteWithBodyAndFiveHeaders() {
+        HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
+        ByteBuffer out = ByteBuffer.allocate(10000);
+        encoder.wrap(out);
+
+        byte[] oversizedBuffer = "{\"orderID\":\"0xabc\"}TRAILING".getBytes(StandardCharsets.UTF_8);
+        int bodyLength = "{\"orderID\":\"0xabc\"}".length();
+        encoder.encode(HTTPMethod.DELETE, new ViewString("/order"), "exchange.com", oversizedBuffer, bodyLength,
+                "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4", "k5", "v5");
+        out.flip();
+
+        String result = StandardCharsets.UTF_8.decode(out).toString();
+        assertTrue(result.startsWith("DELETE /order HTTP/1.1\r\n"));
+        assertTrue(result.contains("k5: v5"));
+        assertTrue(result.contains("Content-Length: " + bodyLength));
+        assertTrue(result.endsWith("\r\n\r\n{\"orderID\":\"0xabc\"}"));
+    }
+
+    @Test
     void testEncodeNullBodyProducesNoContentLength() {
         HTTPEncoder encoder = new HTTPEncoder("HTTP/1.1");
         ByteBuffer out = ByteBuffer.allocate(10000);

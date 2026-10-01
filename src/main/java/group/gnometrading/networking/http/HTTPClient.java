@@ -726,6 +726,26 @@ public class HTTPClient implements AutoCloseable {
         return request(protocol, host, path, HTTPMethod.DELETE, null, 0, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
     }
 
+    public HTTPResponse delete(
+            final HTTPProtocol protocol,
+            final String host,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5
+    ) throws IOException {
+        return request(protocol, host, path, HTTPMethod.DELETE, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+    }
+
     // PUT — String path
 
     public HTTPResponse put(
