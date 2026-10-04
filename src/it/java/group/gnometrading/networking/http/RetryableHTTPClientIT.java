@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
@@ -41,8 +42,12 @@ class RetryableHTTPClientIT {
     void happyPath() throws Exception {
         try (LocalTestHttpServer server = new LocalTestHttpServer()) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.get(HTTPProtocol.HTTP, "localhost", TEST_PATH);
             assertTrue(response.isSuccess());
@@ -55,8 +60,12 @@ class RetryableHTTPClientIT {
         // Server returns 500 twice, then 200 on the third request
         try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_500, HTTP_500, HTTP_200)) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.get(HTTPProtocol.HTTP, "localhost", TEST_PATH);
             assertTrue(response.isSuccess());
@@ -69,8 +78,12 @@ class RetryableHTTPClientIT {
         // Server always returns 500 — client should exhaust retries and return the 500
         try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_500, HTTP_500, HTTP_500)) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.get(HTTPProtocol.HTTP, "localhost", TEST_PATH);
             assertFalse(response.isSuccess());
@@ -82,8 +95,12 @@ class RetryableHTTPClientIT {
     void deleteRequestSucceeds() throws Exception {
         try (LocalTestHttpServer server = new LocalTestHttpServer()) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.delete(HTTPProtocol.HTTP, "localhost", TEST_PATH);
             assertTrue(response.isSuccess());
@@ -95,8 +112,12 @@ class RetryableHTTPClientIT {
     void putRequestSucceeds() throws Exception {
         try (LocalTestHttpServer server = new LocalTestHttpServer()) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             byte[] body = "{\"qty\":5}".getBytes();
             final HTTPResponse response = client.put(HTTPProtocol.HTTP, "localhost", TEST_PATH, body);
@@ -104,6 +125,12 @@ class RetryableHTTPClientIT {
             assertEquals(200, response.getStatusCode());
         }
     }
+
+    private static final byte[] HTTP_404 = (
+            "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n").getBytes();
+
+    private static final byte[] HTTP_429 = (
+            "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n").getBytes();
 
     private static final byte[] HTTP_201 = (
             "HTTP/1.1 201 Created\r\n"
@@ -120,12 +147,70 @@ class RetryableHTTPClientIT {
     ).getBytes();
 
     @Test
+    void postIsNotRetriedAfterAServerError() throws Exception {
+        // The server may have acted on the POST before failing, so retrying could apply it twice.
+        try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_500, HTTP_201)) {
+            final HTTPResponse response = client(server).post(HTTPProtocol.HTTP, "localhost", TEST_PATH, new byte[0]);
+            assertEquals(500, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void postIsRetriedAfterTooManyRequests() throws Exception {
+        try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_429, HTTP_201)) {
+            final HTTPResponse response = client(server).post(HTTPProtocol.HTTP, "localhost", TEST_PATH, new byte[0]);
+            assertEquals(201, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void clientErrorIsNotRetried() throws Exception {
+        try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_404, HTTP_200)) {
+            final HTTPResponse response = client(server).get(HTTPProtocol.HTTP, "localhost", TEST_PATH);
+            assertEquals(404, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void postIsRetriedWhenItCouldNotConnect() throws Exception {
+        final int port;
+        try (ServerSocket reserved = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            port = reserved.getLocalPort();
+        }
+        final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .withBackoff(0)
+                    .build();
+
+        // Nothing listens on the port, so every attempt fails before sending and is retried; the last error surfaces.
+        assertThrows(IOException.class, () -> client.post(HTTPProtocol.HTTP, "localhost", TEST_PATH, new byte[0]));
+    }
+
+    private static RetryableHTTPClient client(ScriptedHttpServer server) {
+        final int port = server.getPort();
+        return RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .withBackoff(0)
+                    .build();
+    }
+
+    @Test
     void status201IsNotRetried() throws Exception {
         // Server only has one response queued — if client retries it will get nothing and fail
         try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_201)) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.post(HTTPProtocol.HTTP, "localhost", TEST_PATH, new byte[0]);
             assertTrue(response.isSuccess(), "201 should be treated as success, not retried");
@@ -137,8 +222,12 @@ class RetryableHTTPClientIT {
     void status204DeleteIsNotRetried() throws Exception {
         try (ScriptedHttpServer server = new ScriptedHttpServer(HTTP_204)) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, SystemEpochClock.INSTANCE, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(SystemEpochClock.INSTANCE)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             final HTTPResponse response = client.delete(HTTPProtocol.HTTP, "localhost", TEST_PATH);
             assertTrue(response.isSuccess(), "204 should be treated as success");
@@ -154,8 +243,12 @@ class RetryableHTTPClientIT {
 
         try (LocalTestHttpServer server = new LocalTestHttpServer()) {
             final int port = server.getPort();
-            final RetryableHTTPClient client = new RetryableHTTPClient(
-                    2, 25_000, clock, () -> new HTTPClient(true, port));
+            final RetryableHTTPClient client = RetryableHTTPClient.builder()
+                    .withMaxRetries(2)
+                    .withIdleReconnectThreshold(25_000)
+                    .withClock(clock)
+                    .withHttpClient(HTTPClient.builder().withPort(port))
+                    .build();
 
             // First request
             HTTPResponse response = client.get(HTTPProtocol.HTTP, "localhost", TEST_PATH);
@@ -181,7 +274,7 @@ class RetryableHTTPClientIT {
         private final AtomicBoolean running = new AtomicBoolean(true);
 
         ScriptedHttpServer(final byte[]... responses) throws IOException {
-            this.serverSocket = new ServerSocket(0);
+            this.serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             this.responses = new LinkedBlockingQueue<>();
             for (byte[] r : responses) {
                 this.responses.add(r);

@@ -17,6 +17,30 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    createContext0
+ * Signature: (Ljava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_createContext0
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    freeSession0
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_freeSession0
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    upRefSession0
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_upRefSession0
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
  * Method:    socket
  * Signature: (ZZ)J
  */
@@ -26,17 +50,17 @@ JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSock
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
  * Method:    connect0
- * Signature: (JLjava/net/InetAddress;ILjava/lang/String;)I
+ * Signature: (JJLjava/net/InetAddress;ILjava/lang/String;IJ)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_connect0
-  (JNIEnv *, jobject, jlong, jobject, jint, jstring);
+  (JNIEnv *, jobject, jlong, jlong, jobject, jint, jstring, jint, jlong);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
  * Method:    close0
- * Signature: (J)V
+ * Signature: (J)J
  */
-JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_close0
+JNIEXPORT jlong JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_close0
   (JNIEnv *, jobject, jlong);
 
 /*
@@ -50,10 +74,10 @@ JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
  * Method:    write0
- * Signature: (JJI)I
+ * Signature: (JJII)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_write0
-  (JNIEnv *, jobject, jlong, jlong, jint);
+  (JNIEnv *, jobject, jlong, jlong, jint, jint);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
@@ -102,6 +126,38 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocke
  */
 JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setReadTimeout0
   (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setKeepAliveOptions0
+ * Signature: (JIII)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setKeepAliveOptions0
+  (JNIEnv *, jobject, jlong, jint, jint, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    setBusyPoll0
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_setBusyPoll0
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    probe0
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_probe0
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSSLSocket
+ * Method:    isSessionReused0
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_group_gnometrading_networking_sockets_NativeSSLSocket_isSessionReused0
+  (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus
 }

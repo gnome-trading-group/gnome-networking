@@ -17,22 +17,56 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     public static final int DEFAULT_HTTP_READ_BUFFER_SIZE = 1 << 15; // 32KB
     public static final int DEFAULT_HTTP_WRITE_BUFFER_SIZE = 1 << 15; // 32KB
 
+    // Shared so that every connection uses the same TLS context, rather than building one per connection.
+    private static final GnomeSocketFactory SSL_SOCKET_FACTORY = new NativeSSLSocketFactory();
+    private static final GnomeSocketFactory PLAIN_SOCKET_FACTORY = new NativeSocketFactory();
+
     private final HTTPDecoder httpDecoder;
     private final HTTPEncoder httpEncoder;
     private final String host;
+    private final HTTPProtocol protocol;
 
     public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host) throws IOException {
-        this(protocol, host, parsePort(protocol));
+        this(protocol, host, parsePort(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE);
     }
 
     public HTTPSocketMessageClient(final HTTPProtocol protocol, final String host, final int port) throws IOException {
-        super(parseURL(host, port), parseSocketFactory(protocol), DEFAULT_HTTP_READ_BUFFER_SIZE, DEFAULT_HTTP_WRITE_BUFFER_SIZE);
+        this(protocol, host, port, DEFAULT_HTTP_READ_BUFFER_SIZE);
+    }
+
+    public HTTPSocketMessageClient(
+            final HTTPProtocol protocol, final String host, final int port, final int readBufferSize) throws IOException {
+        this(protocol, host, port, readBufferSize, DEFAULT_HTTP_WRITE_BUFFER_SIZE, null);
+    }
+
+    /**
+     * @param writeBufferSize the largest request (headers and body) the connection can send
+     * @param socketFactory creates the connection's socket; null for the default plain or TLS socket for
+     *     {@code protocol}
+     */
+    public HTTPSocketMessageClient(
+            final HTTPProtocol protocol,
+            final String host,
+            final int port,
+            final int readBufferSize,
+            final int writeBufferSize,
+            final GnomeSocketFactory socketFactory) throws IOException {
+        super(
+                parseURL(host, port),
+                socketFactory != null ? socketFactory : parseSocketFactory(protocol),
+                readBufferSize,
+                writeBufferSize);
         this.host = host;
+        this.protocol = protocol;
         this.httpDecoder = new HTTPDecoder();
         this.httpEncoder = new HTTPEncoder();
     }
 
-    private static int parsePort(final HTTPProtocol protocol) {
+    HTTPProtocol protocol() {
+        return this.protocol;
+    }
+
+    static int parsePort(final HTTPProtocol protocol) {
         return protocol == HTTPProtocol.HTTPS ? DEFAULT_HTTPS_PORT : DEFAULT_PORT;
     }
 
@@ -41,7 +75,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
     }
 
     private static GnomeSocketFactory parseSocketFactory(final HTTPProtocol protocol) {
-        return protocol == HTTPProtocol.HTTPS ? new NativeSSLSocketFactory() : new NativeSocketFactory();
+        return protocol == HTTPProtocol.HTTPS ? SSL_SOCKET_FACTORY : PLAIN_SOCKET_FACTORY;
     }
 
     public int request(
@@ -170,7 +204,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
         this.writeBuffer.flip();
 
-        return this.socket.write(this.writeBuffer);
+        return writeRequest();
     }
 
     public int request(
@@ -193,7 +227,26 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         httpEncoder.encode(method, path, this.host, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
         this.writeBuffer.flip();
 
-        return this.socket.write(this.writeBuffer);
+        return writeRequest();
+    }
+
+    /**
+     * Writes the whole encoded request. A request cut off part way would leave the connection unusable, so a
+     * partial write fails rather than returning.
+     */
+    private int writeRequest() throws IOException {
+        int total = 0;
+        while (this.writeBuffer.hasRemaining()) {
+            final int written = this.socket.write(this.writeBuffer);
+            if (written <= 0) {
+                if (total == 0) {
+                    return written;
+                }
+                throw new IOException("Request write stopped after " + total + " bytes");
+            }
+            total += written;
+        }
+        return total;
     }
 
     @Override

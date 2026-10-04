@@ -82,6 +82,7 @@ public abstract class BaseSocketServer implements Runnable {
             e.printStackTrace();
         } finally {
             stop();
+            closeConnections();
         }
     }
 
@@ -94,14 +95,31 @@ public abstract class BaseSocketServer implements Runnable {
 
     protected abstract void handleRead(SelectionKey key) throws IOException;
 
+    /**
+     * Stops accepting immediately and wakes the server thread, which closes the open connections and the selector
+     * itself: closing a selector from another thread while it is in use races with its own key handling.
+     */
     public void stop() {
         running.set(false);
         try {
-            if (selector != null) {
-                selector.close();
-            }
             if (serverChannel != null) {
                 serverChannel.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (selector != null) {
+            selector.wakeup();
+        }
+    }
+
+    private void closeConnections() {
+        try {
+            if (selector != null && selector.isOpen()) {
+                for (SelectionKey key : selector.keys()) {
+                    key.channel().close();
+                }
+                selector.close();
             }
         } catch (IOException e) {
             e.printStackTrace();

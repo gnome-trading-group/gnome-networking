@@ -20,33 +20,29 @@ public class SSLSocketServer extends BaseSSLSocketServer {
         SocketChannel client = (SocketChannel) key.channel();
         SSLEngine engine = (SSLEngine) key.attachment();
 
-        peerNetData.clear();
-        int bytesRead = client.read(peerNetData);
-        if (bytesRead > 0) {
-            peerNetData.flip();
+        // Appends to whatever is already buffered: bytes left over from the handshake, or the start of a record
+        // whose remainder had not arrived yet. Clearing first would silently drop them.
+        if (client.read(peerNetData) < 0) {
+            client.close();
+            return;
+        }
+        peerNetData.flip();
+        try {
             while (peerNetData.hasRemaining()) {
                 peerAppData.clear();
                 SSLEngineResult result = engine.unwrap(peerNetData, peerAppData);
                 switch (result.getStatus()) {
                     case OK:
                         peerAppData.flip();
-                        write(client, engine, peerAppData);
+                        if (peerAppData.hasRemaining()) {
+                            write(client, engine, peerAppData);
+                        }
                         break;
                     case BUFFER_OVERFLOW:
                         peerAppData = enlargeApplicationBuffer(engine, peerAppData);
                         break;
                     case BUFFER_UNDERFLOW:
-                        peerNetData = handleBufferUnderflow(engine, peerNetData);
-                        peerNetData.compact();
-                        bytesRead = client.read(peerNetData);
-                        if (bytesRead > 0) {
-                            peerNetData.flip();
-                            continue;
-                        } else if (bytesRead < 0) {
-                            client.close();
-                            return;
-                        }
-                        return; // No more data available right now
+                        return; // the rest of the record has not arrived yet; keep what we have
                     case CLOSED:
                         client.close();
                         return;
@@ -54,8 +50,8 @@ public class SSLSocketServer extends BaseSSLSocketServer {
                         throw new IllegalStateException("Invalid SSL status: " + result.getStatus());
                 }
             }
-        } else if (bytesRead < 0) {
-            client.close();
+        } finally {
+            peerNetData.compact();
         }
     }
 }

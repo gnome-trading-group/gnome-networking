@@ -5,6 +5,14 @@ public enum Opcode {
 
     public final int code;
 
+    private static final Opcode[] BY_CODE = new Opcode[16];
+
+    static {
+        for (Opcode opcode : values()) {
+            BY_CODE[opcode.code] = opcode;
+        }
+    }
+
     Opcode(int code) {
         this.code = code;
     }
@@ -23,12 +31,11 @@ public enum Opcode {
          | |1|2|3|       |
          +-+-+-+-+-------+
          */
-        input &= 0b00001111;
-        for (Opcode opcode : values()) {
-            if (opcode.code == input) {
-                return opcode;
-            }
+        // A table lookup, since values() would clone the array on every frame.
+        final Opcode opcode = BY_CODE[input & 0b00001111];
+        if (opcode == null) {
+            throw new IllegalArgumentException("Invalid opcode supplied");
         }
-        throw new IllegalArgumentException("Invalid opcode supplied");
+        return opcode;
     }
 }

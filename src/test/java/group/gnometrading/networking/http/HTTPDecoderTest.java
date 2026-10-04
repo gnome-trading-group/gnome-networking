@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -186,6 +187,132 @@ class HTTPDecoderTest {
 
         assertTrue(decoder.isComplete());
         assertEquals(0, decoder.contentLength());
+    }
+
+    @Test
+    void testChunkedBodyIsReassembled() throws IOException {
+        String response = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                + "5\r\nhello\r\n"
+                + "1;ext=1\r\n \r\n"
+                + "5\r\nworld\r\n"
+                + "0\r\n\r\n";
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals("hello world", body(decoder));
+        assertEquals(response.length(), buffer.position());
+    }
+
+    @Test
+    void testChunkedBodyWithTrailersAndFollowingResponse() throws IOException {
+        String first = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                + "a\r\n0123456789\r\n"
+                + "0\r\nX-Trailer: yes\r\n\r\n";
+        String second = "HTTP/1.1 204 No Content\r\n\r\n";
+        ByteBuffer buffer = ByteBuffer.wrap((first + second).getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+        assertTrue(decoder.isComplete());
+        assertEquals("0123456789", body(decoder));
+        assertEquals(first.length(), buffer.position());
+
+        decoder.wrap(buffer);
+        assertTrue(decoder.isComplete());
+        assertEquals(204, decoder.getStatus());
+    }
+
+    @Test
+    void testChunkedBodyIsIncompleteUntilTheLastChunk() throws IOException {
+        String full = "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n"
+                + "5\r\nhello\r\n"
+                + "0\r\n\r\n";
+        HTTPDecoder decoder = new HTTPDecoder();
+        for (int cut = 0; cut < full.length(); cut++) {
+            ByteBuffer partial = ByteBuffer.wrap(full.substring(0, cut).getBytes());
+            decoder.wrap(partial);
+            assertFalse(decoder.isComplete(), "complete after only " + cut + " bytes");
+            assertEquals(0, partial.position(), "partial response consumed after " + cut + " bytes");
+        }
+        ByteBuffer complete = ByteBuffer.wrap(full.getBytes());
+        decoder.wrap(complete);
+        assertTrue(decoder.isComplete());
+        assertEquals("hello", body(decoder));
+    }
+
+    @Test
+    void testHeaderNamesAreCaseInsensitive() throws IOException {
+        String response = "HTTP/1.1 200 OK\r\ncontent-length: 3\r\nCONNECTION: Close\r\n\r\nabc";
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(ByteBuffer.wrap(response.getBytes()));
+
+        assertTrue(decoder.isComplete());
+        assertEquals("abc", body(decoder));
+        assertTrue(decoder.shouldClose());
+    }
+
+    @Test
+    void testStatusLineWithoutReasonPhrase() throws IOException {
+        String response = "HTTP/1.1 200\r\nContent-Length: 2\r\n\r\nok";
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(ByteBuffer.wrap(response.getBytes()));
+
+        assertTrue(decoder.isComplete());
+        assertEquals(200, decoder.getStatus());
+        assertEquals("ok", body(decoder));
+        assertFalse(decoder.shouldClose());
+    }
+
+    @Test
+    void testBodyWithoutLengthClosesTheConnection() throws IOException {
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(ByteBuffer.wrap(lines("HTTP/1.1 200 OK").getBytes()));
+        assertTrue(decoder.shouldClose());
+
+        decoder.wrap(ByteBuffer.wrap(lines("HTTP/1.1 204 No Content").getBytes()));
+        assertFalse(decoder.shouldClose());
+    }
+
+    @Test
+    void testInterimResponsesAreSkipped() throws IOException {
+        String response = "HTTP/1.1 100 Continue\r\n\r\n"
+                + "HTTP/1.1 103 Early Hints\r\nLink: </style.css>; rel=preload\r\n\r\n"
+                + "HTTP/1.1 201 Created\r\nContent-Length: 2\r\n\r\nok";
+        ByteBuffer buffer = ByteBuffer.wrap(response.getBytes());
+
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertTrue(decoder.isComplete());
+        assertEquals(201, decoder.getStatus());
+        assertEquals("ok", body(decoder));
+        assertEquals(response.length(), buffer.position());
+    }
+
+    @Test
+    void testInterimResponseAloneIsIncomplete() throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap("HTTP/1.1 103 Early Hints\r\n\r\n".getBytes());
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(buffer);
+
+        assertFalse(decoder.isComplete());
+        assertEquals(0, buffer.position());
+    }
+
+    @Test
+    void testOversizedChunkIsRejected() {
+        String response = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nfffffffff\r\n";
+        HTTPDecoder decoder = new HTTPDecoder();
+        assertThrows(IOException.class, () -> decoder.wrap(ByteBuffer.wrap(response.getBytes())));
+    }
+
+    private static String body(HTTPDecoder decoder) {
+        ByteBuffer destination = ByteBuffer.allocate(decoder.contentLength());
+        decoder.copyBody(destination);
+        return new String(destination.array(), StandardCharsets.US_ASCII);
     }
 
     private static String lines(String... lines) {

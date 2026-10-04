@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -402,7 +403,7 @@ class HTTPClientIT {
         private final AtomicBoolean running = new AtomicBoolean(true);
 
         HeaderCapturingServer(final byte[] response, final AtomicReference<String> capturedHeaders) throws IOException {
-            this.serverSocket = new ServerSocket(0);
+            this.serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             this.response = response;
             this.capturedHeaders = capturedHeaders;
             final Thread t = new Thread(this::acceptLoop, "header-capturing-server");
@@ -474,7 +475,7 @@ class HTTPClientIT {
         private final AtomicBoolean running = new AtomicBoolean(true);
 
         ImmediateCloseServer() throws IOException {
-            serverSocket = new ServerSocket(0);
+            serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             final Thread t = new Thread(this::acceptLoop, "immediate-close-server");
             t.setDaemon(true);
             t.start();
@@ -522,7 +523,7 @@ class HTTPClientIT {
         private final CountDownLatch firstConnectionClosed = new CountDownLatch(1);
 
         CloseAfterOneResponseServer() throws IOException {
-            serverSocket = new ServerSocket(0);
+            serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             final Thread t = new Thread(this::acceptLoop, "close-after-one-server");
             t.setDaemon(true);
             t.start();
@@ -594,7 +595,7 @@ class HTTPClientIT {
         private final AtomicBoolean running = new AtomicBoolean(true);
 
         HangingServer() throws IOException {
-            serverSocket = new ServerSocket(0);
+            serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             final Thread t = new Thread(this::acceptLoop, "hanging-server");
             t.setDaemon(true);
             t.start();
@@ -663,7 +664,7 @@ class HTTPClientIT {
 
         PartialResponseServer(final byte[] partialResponse) throws IOException {
             this.partialResponse = partialResponse;
-            serverSocket = new ServerSocket(0);
+            serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
             final Thread t = new Thread(this::acceptLoop, "partial-response-server");
             t.setDaemon(true);
             t.start();

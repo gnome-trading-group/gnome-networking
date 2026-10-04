@@ -1,5 +1,6 @@
 package group.gnometrading.networking.client;
 
+import group.gnometrading.networking.sockets.SocketProbe;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -56,4 +57,13 @@ public interface Client extends AutoCloseable {
     void setTcpNoDelay(boolean on) throws IOException;
 
     void setReadTimeout(int millis) throws IOException;
+
+    /** Bounds later connects, including any TLS handshake. */
+    void setConnectTimeout(int millis);
+
+    void setKeepAlive(int idleSeconds, int intervalSeconds, int count) throws IOException;
+
+    void setBusyPoll(int micros) throws IOException;
+
+    SocketProbe probe();
 }

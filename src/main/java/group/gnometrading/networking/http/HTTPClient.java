@@ -2,46 +2,98 @@ package group.gnometrading.networking.http;
 
 import group.gnometrading.collections.GnomeMap;
 import group.gnometrading.collections.PooledHashMap;
+import group.gnometrading.networking.sockets.NativeSocket;
+import group.gnometrading.networking.sockets.SocketProbe;
+import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import group.gnometrading.strings.GnomeString;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 /**
- * HTTPClient which produces garbage due to creating new sockets on connection close.
- * This client is not meant for multithreading use.
+ * Blocking HTTP/1.1 client over persistent connections, with an optional non-blocking {@link #send} / {@link #poll}
+ * API for keeping several requests to one host in flight at once.
+ *
+ * <p>Each host gets up to {@code connectionsPerHost} keep-alive connections. A connection only ever carries one
+ * request at a time, and is dropped whenever a response does not arrive whole, so a late or partial response can
+ * never be read as the reply to a later request. Creating connections produces garbage; requests do not.
+ * Not meant for multithreaded use.
  */
 public class HTTPClient implements AutoCloseable {
 
-    private static final int MAX_READ_RETRIES = 3;
     static final int DEFAULT_READ_TIMEOUT_MS = 10_000;
+    /** Without an explicit response timeout, a response may take this many read timeouts. */
+    private static final int DEFAULT_READ_TIMEOUTS_PER_RESPONSE = 3;
+    public static final int DEFAULT_CONNECTIONS_PER_HOST = 1;
 
-    private final GnomeMap<String, HTTPSocketMessageClient> socketPool;
+    private final GnomeMap<String, HostConnections> hosts;
     private final HTTPResponse httpResponse;
     private final ByteBuffer body;
     private final boolean keepAlive;
-    private final int portOverride;
+    private final int keepAliveIdleSeconds;
+    private final int keepAliveIntervalSeconds;
+    private final int keepAliveProbes;
+    private final int port;
     private final int readTimeoutMs;
+    // Far enough away to never pass, yet small enough that adding it to System.nanoTime() cannot wrap around.
+    private static final long NO_RESPONSE_DEADLINE_NANOS = Long.MAX_VALUE / 2;
+
+    private final long responseTimeoutNanos;
+    private final int connectTimeoutMs;
+    private final GnomeSocketFactory socketFactory;
+    private final int readBufferSize;
+    private final int writeBufferSize;
+    private final int connectionsPerHost;
 
     public HTTPClient() {
-        this(true, 0);
+        this(builder());
     }
 
     public HTTPClient(final boolean keepAlive) {
-        this(keepAlive, 0);
+        this(builder().withKeepAlive(keepAlive));
     }
 
-    HTTPClient(final boolean keepAlive, final int portOverride) {
-        this(keepAlive, portOverride, DEFAULT_READ_TIMEOUT_MS);
+    HTTPClient(final boolean keepAlive, final int port) {
+        this(builder().withKeepAlive(keepAlive).withPort(port));
     }
 
-    HTTPClient(final boolean keepAlive, final int portOverride, final int readTimeoutMs) {
-        this.socketPool = new PooledHashMap<>();
+    HTTPClient(final boolean keepAlive, final int port, final int readTimeoutMs) {
+        this(builder().withKeepAlive(keepAlive).withPort(port).withReadTimeout(readTimeoutMs));
+    }
+
+    HTTPClient(final HTTPClientBuilder settings) {
+        if (settings.connectionsPerHost < 1) {
+            throw new IllegalArgumentException("connectionsPerHost must be at least 1");
+        }
+        this.hosts = new PooledHashMap<>();
         this.httpResponse = new HTTPResponse();
-        this.body = ByteBuffer.allocate(HTTPSocketMessageClient.DEFAULT_HTTP_READ_BUFFER_SIZE);
-        this.keepAlive = keepAlive;
-        this.portOverride = portOverride;
-        this.readTimeoutMs = readTimeoutMs;
+        this.body = ByteBuffer.allocate(settings.readBufferSize);
+        this.keepAlive = settings.keepAlive;
+        this.keepAliveIdleSeconds = settings.keepAliveIdleSeconds;
+        this.keepAliveIntervalSeconds = settings.keepAliveIntervalSeconds;
+        this.keepAliveProbes = settings.keepAliveProbes;
+        this.port = settings.port;
+        this.readTimeoutMs = settings.readTimeoutMs;
+        if (settings.responseTimeoutMs > 0) {
+            this.responseTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(settings.responseTimeoutMs);
+        } else if (settings.readTimeoutMs > 0) {
+            this.responseTimeoutNanos =
+                    TimeUnit.MILLISECONDS.toNanos((long) DEFAULT_READ_TIMEOUTS_PER_RESPONSE * settings.readTimeoutMs);
+        } else {
+            // Reads that never time out leave nothing to derive a deadline from; three times zero would fail
+            // every response that needs a second read.
+            this.responseTimeoutNanos = NO_RESPONSE_DEADLINE_NANOS;
+        }
+        this.connectTimeoutMs = settings.connectTimeoutMs;
+        this.socketFactory = settings.socketFactory;
+        this.readBufferSize = settings.readBufferSize;
+        this.writeBufferSize = settings.writeBufferSize;
+        this.connectionsPerHost = settings.connectionsPerHost;
+    }
+
+    public static HTTPClientBuilder builder() {
+        return new HTTPClientBuilder();
     }
 
     private HTTPResponse request(
@@ -61,15 +113,29 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey5,
             final String headerValue5
     ) throws IOException {
-        HTTPSocketMessageClient client = getSocketConnection(protocol, host);
-        int bytesWritten = client.request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
-
-        if (bytesWritten <= 0) {
-            client = recreateConnection(protocol, host);
-            bytesWritten = client.request(method, path, body, body == null ? 0 : body.length, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+        final HostConnections connections = hostConnections(host);
+        final int index = idleConnection(connections, host);
+        HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
+        final int bodyLength = body == null ? 0 : body.length;
+        int bytesWritten;
+        try {
+            bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+        } catch (IOException e) {
+            bytesWritten = -1;
         }
 
-        return parseResponse(client, bytesWritten);
+        if (bytesWritten <= 0) {
+            client = recreateConnection(connections, index, protocol, host);
+            try {
+                bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+            } catch (IOException | RuntimeException e) {
+                // Part of the request may be on the wire; the connection cannot carry another one.
+                discardConnection(connections, index);
+                throw e;
+            }
+        }
+
+        return awaitResponse(connections, index, client, bytesWritten);
     }
 
     private HTTPResponse request(
@@ -89,89 +155,307 @@ public class HTTPClient implements AutoCloseable {
             final String headerValue4,
             final String headerKey5,
             final String headerValue5) throws IOException {
-        HTTPSocketMessageClient client = getSocketConnection(protocol, host);
-        int bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
-
-        if (bytesWritten <= 0) {
-            client = recreateConnection(protocol, host);
+        final HostConnections connections = hostConnections(host);
+        final int index = idleConnection(connections, host);
+        HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
+        int bytesWritten;
+        try {
             bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+        } catch (IOException e) {
+            bytesWritten = -1;
         }
 
-        return parseResponse(client, bytesWritten);
+        if (bytesWritten <= 0) {
+            client = recreateConnection(connections, index, protocol, host);
+            try {
+                bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+            } catch (IOException | RuntimeException e) {
+                // Part of the request may be on the wire; the connection cannot carry another one.
+                discardConnection(connections, index);
+                throw e;
+            }
+        }
+
+        return awaitResponse(connections, index, client, bytesWritten);
     }
 
-    private HTTPResponse parseResponse(final HTTPSocketMessageClient client, final int bytesWritten) throws IOException {
-        if (bytesWritten < 0) {
+    private HTTPResponse awaitResponse(
+            final HostConnections connections,
+            final int index,
+            final HTTPSocketMessageClient client,
+            final int bytesWritten) throws IOException {
+        if (bytesWritten <= 0) {
+            // Nothing was sent, so no response is coming.
+            discardConnection(connections, index);
             return this.httpResponse.update(false, -1, null);
         }
 
-        int message;
-        int retries = 0;
-        do {
-            message = client.readMessage();
-            retries++;
-        } while (message == 0 && retries < MAX_READ_RETRIES);
-
-        if (message <= 0) {
-            return this.httpResponse.update(false, message, null);
+        final long deadline = System.nanoTime() + this.responseTimeoutNanos;
+        while (true) {
+            final int message;
+            try {
+                message = client.readMessage();
+            } catch (IOException | RuntimeException e) {
+                // The read buffer may still hold the bad response, so the connection must not be reused.
+                discardConnection(connections, index);
+                throw e;
+            }
+            if (message > 0) {
+                return completeResponse(connections, index, client);
+            }
+            if (message < 0) {
+                discardConnection(connections, index);
+                return this.httpResponse.update(false, message, null);
+            }
+            if (System.nanoTime() - deadline >= 0) {
+                discardConnection(connections, index);
+                return this.httpResponse.update(false, 0, null);
+            }
         }
+    }
 
+    private HTTPResponse completeResponse(
+            final HostConnections connections, final int index, final HTTPSocketMessageClient client) {
+        final HTTPDecoder decoder = client.getHTTPDecoder();
         this.body.clear();
-        if (client.getHTTPDecoder().contentLength() > 0) {
-            client.getHTTPDecoder().copyBody(this.body);
-            this.body.flip();
+        if (decoder.contentLength() > 0) {
+            decoder.copyBody(this.body);
+        }
+        // Flipped even when empty: a cleared buffer would otherwise expose the previous response's bytes.
+        this.body.flip();
+
+        // Bytes beyond the response mean the server sent something unasked for; whatever it is would be read as
+        // the reply to the next request.
+        if (decoder.shouldClose() || client.getReadBuffer().hasRemaining()) {
+            discardConnection(connections, index);
         }
 
-        int status = client.getHTTPDecoder().getStatus();
+        final int status = decoder.getStatus();
         return this.httpResponse.update(status >= 200 && status < 300, status, this.body);
     }
 
+    /**
+     * Opens every connection to {@code host} ahead of time, so the first requests do not pay for TCP and TLS
+     * handshakes.
+     */
     public void connect(final HTTPProtocol protocol, final String host) throws IOException {
-        getSocketConnection(protocol, host);
+        final HostConnections connections = hostConnections(host);
+        for (int i = 0; i < this.connectionsPerHost; i++) {
+            if (!connections.inFlight[i]) {
+                readyConnection(connections, i, protocol, host);
+            }
+        }
+    }
+
+    /** Makes sure the connection the next request to {@code host} will use is open, connecting it if needed. */
+    void prepareConnection(final HTTPProtocol protocol, final String host) throws IOException {
+        final HostConnections connections = hostConnections(host);
+        readyConnection(connections, idleConnection(connections, host), protocol, host);
     }
 
     public void reconnect(final HTTPProtocol protocol, final String host) throws IOException {
-        recreateConnection(protocol, host);
+        final HostConnections connections = hostConnections(host);
+        for (int i = 0; i < this.connectionsPerHost; i++) {
+            if (!connections.inFlight[i]) {
+                recreateConnection(connections, i, protocol, host);
+            }
+        }
     }
 
-    private HTTPSocketMessageClient getSocketConnection(final HTTPProtocol protocol, final String host) throws IOException {
-        if (!socketPool.containsKey(host)) {
-            final HTTPSocketMessageClient client = portOverride > 0
-                    ? new HTTPSocketMessageClient(protocol, host, portOverride)
-                    : new HTTPSocketMessageClient(protocol, host);
+    /**
+     * Replaces any idle connection to {@code host} the server has closed (or left unread bytes on), and opens
+     * any that are missing. Servers drop idle keep-alive connections; calling this on a schedule moves the
+     * reconnect off the request path. Costs one non-blocking syscall per healthy connection.
+     */
+    public void keepWarm(final HTTPProtocol protocol, final String host) throws IOException {
+        connect(protocol, host);
+    }
+
+    /**
+     * Writes a request on an idle connection to {@code host} and returns without waiting for the response.
+     *
+     * @return the connection carrying the request, to pass to {@link #poll}; -1 if every connection is busy
+     */
+    public int send(
+            final HTTPProtocol protocol,
+            final String host,
+            final HTTPMethod method,
+            final GnomeString path,
+            final byte[] body,
+            final int bodyLength,
+            final String headerKey1,
+            final String headerValue1,
+            final String headerKey2,
+            final String headerValue2,
+            final String headerKey3,
+            final String headerValue3,
+            final String headerKey4,
+            final String headerValue4,
+            final String headerKey5,
+            final String headerValue5) throws IOException {
+        final HostConnections connections = hostConnections(host);
+        final int index = connections.idleIndex();
+        if (index < 0) {
+            return -1;
+        }
+        HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
+        int bytesWritten;
+        try {
+            bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+        } catch (IOException e) {
+            bytesWritten = -1;
+        }
+        if (bytesWritten <= 0) {
+            client = recreateConnection(connections, index, protocol, host);
+            try {
+                bytesWritten = client.request(method, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
+            } catch (IOException | RuntimeException e) {
+                discardConnection(connections, index);
+                throw e;
+            }
+            if (bytesWritten <= 0) {
+                discardConnection(connections, index);
+                throw new IOException("Unable to write request to " + host);
+            }
+        }
+        connections.inFlight[index] = true;
+        return index;
+    }
+
+    /**
+     * Checks, without blocking, for the response to a request from {@link #send}.
+     *
+     * @return the response once it has fully arrived, otherwise null. A failed response (connection closed)
+     *     is returned with status -1. The returned object is reused by the next response.
+     */
+    public HTTPResponse poll(final String host, final int connection) throws IOException {
+        final HostConnections connections = this.hosts.get(host);
+        if (connections == null || !connections.inFlight[connection]) {
+            throw new IllegalStateException("No request in flight on connection " + connection + " to " + host);
+        }
+        final HTTPSocketMessageClient client = connections.clients[connection];
+        final int message;
+        try {
+            message = client.pollMessage();
+        } catch (IOException | RuntimeException e) {
+            connections.inFlight[connection] = false;
+            discardConnection(connections, connection);
+            throw e;
+        }
+        if (message == 0) {
+            return null;
+        }
+        connections.inFlight[connection] = false;
+        if (message < 0) {
+            discardConnection(connections, connection);
+            return this.httpResponse.update(false, -1, null);
+        }
+        return completeResponse(connections, connection, client);
+    }
+
+    /** Gives up on a request from {@link #send}; its connection is closed so the late response is never read. */
+    public void abandon(final String host, final int connection) {
+        final HostConnections connections = this.hosts.get(host);
+        if (connections != null && connections.inFlight[connection]) {
+            connections.inFlight[connection] = false;
+            discardConnection(connections, connection);
+        }
+    }
+
+    private HostConnections hostConnections(final String host) {
+        HostConnections connections = this.hosts.get(host);
+        if (connections == null) {
+            connections = new HostConnections(this.connectionsPerHost);
+            this.hosts.put(host, connections);
+        }
+        return connections;
+    }
+
+    private static int idleConnection(final HostConnections connections, final String host) {
+        final int index = connections.idleIndex();
+        if (index < 0) {
+            throw new IllegalStateException("Every connection to " + host + " has a request in flight");
+        }
+        return index;
+    }
+
+    /** The connection at {@code index}, replaced first if the server has closed it or left bytes on it. */
+    private HTTPSocketMessageClient readyConnection(
+            final HostConnections connections, final int index, final HTTPProtocol protocol, final String host)
+            throws IOException {
+        final HTTPSocketMessageClient client = connections.clients[index];
+        if (client != null
+                && client.isConnected()
+                && !client.getReadBuffer().hasRemaining()
+                && client.probe() == SocketProbe.IDLE) {
+            return client;
+        }
+        return recreateConnection(connections, index, protocol, host);
+    }
+
+    /**
+     * Reconnects the connection at {@code index}. The client object and its buffers are kept across reconnects:
+     * building them again would allocate megabytes of direct memory on the request path, freed only by a GC.
+     */
+    private HTTPSocketMessageClient recreateConnection(
+            final HostConnections connections, final int index, final HTTPProtocol protocol, final String host)
+            throws IOException {
+        discardConnection(connections, index);
+
+        HTTPSocketMessageClient client = connections.clients[index];
+        if (client == null || client.protocol() != protocol) {
+            final int connectPort = this.port > 0 ? this.port : HTTPSocketMessageClient.parsePort(protocol);
+            client = new HTTPSocketMessageClient(
+                    protocol, host, connectPort, this.readBufferSize, this.writeBufferSize, this.socketFactory);
+            connections.clients[index] = client;
+        }
+        client.setConnectTimeout(this.connectTimeoutMs);
+        try {
             client.connect();
-            if (keepAlive) {
+            if (this.keepAliveIdleSeconds > 0) {
+                client.setKeepAlive(this.keepAliveIdleSeconds, this.keepAliveIntervalSeconds, this.keepAliveProbes);
+            } else if (this.keepAlive) {
                 client.setKeepAlive(true);
             }
             client.setTcpNoDelay(true);
-            client.setReadTimeout(readTimeoutMs);
-            socketPool.put(host, client);
+            client.setReadTimeout(this.readTimeoutMs);
+        } catch (IOException | RuntimeException e) {
+            // A connection whose settings failed is closed rather than left open and unused.
+            discardConnection(connections, index);
+            throw e;
         }
-        return socketPool.get(host);
+        return client;
     }
 
-    private HTTPSocketMessageClient recreateConnection(final HTTPProtocol protocol, final String host) throws IOException {
-        final HTTPSocketMessageClient oldClient = socketPool.remove(host);
-        if (oldClient != null) {
+    /** Closes the connection at {@code index}; the client stays in its slot to be reconnected. */
+    private static void discardConnection(final HostConnections connections, final int index) {
+        final HTTPSocketMessageClient client = connections.clients[index];
+        if (client != null) {
             try {
-                oldClient.close();
-            } catch (Exception e) {
-                // Ignore - socket is already dead
+                client.close();
+            } catch (Exception ignored) {
+                // The connection is being thrown away; a failure to close it changes nothing.
             }
         }
+    }
 
-        final HTTPSocketMessageClient newClient = portOverride > 0
-                ? new HTTPSocketMessageClient(protocol, host, portOverride)
-                : new HTTPSocketMessageClient(protocol, host);
-        newClient.connect();
-        if (keepAlive) {
-            newClient.setKeepAlive(true);
+    private static final class HostConnections {
+        final HTTPSocketMessageClient[] clients;
+        final boolean[] inFlight;
+
+        HostConnections(final int size) {
+            this.clients = new HTTPSocketMessageClient[size];
+            this.inFlight = new boolean[size];
         }
-        newClient.setTcpNoDelay(true);
-        newClient.setReadTimeout(readTimeoutMs);
-        socketPool.put(host, newClient);
 
-        return newClient;
+        int idleIndex() {
+            for (int i = 0; i < this.inFlight.length; i++) {
+                if (!this.inFlight[i]) {
+                    return i;
+                }
+            }
+            return -1;
+        }
     }
 
     // GET — String path
@@ -988,10 +1272,11 @@ public class HTTPClient implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        for (var key : this.socketPool.keys()) {
-            try {
-                this.socketPool.get(key).close();
-            } catch (Exception ignored) {
+        for (final String host : this.hosts.keys()) {
+            final HostConnections connections = this.hosts.get(host);
+            for (int i = 0; i < connections.clients.length; i++) {
+                connections.inFlight[i] = false;
+                discardConnection(connections, i);
             }
         }
     }

@@ -59,4 +59,24 @@ public class NetSocket implements GnomeSocket {
     public int write(ByteBuffer directBuffer, int len) throws IOException {
         return this.outputChannel.write(directBuffer);
     }
+
+    @Override
+    public void setReadTimeout(int millis) throws IOException {
+        this.socket.setSoTimeout(millis);
+    }
+
+    @Override
+    public void setTcpNoDelay(boolean on) throws IOException {
+        this.socket.setTcpNoDelay(on);
+    }
+
+    @Override
+    public void setKeepAlive(boolean on) throws IOException {
+        this.socket.setKeepAlive(on);
+    }
+
+    @Override
+    public void setConnectTimeout(int millis) {
+        // The java.net socket connects in its constructor, so there is no later connect to bound.
+    }
 }

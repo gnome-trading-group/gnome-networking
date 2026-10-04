@@ -1,5 +1,6 @@
 package group.gnometrading.networking.client;
 
+import group.gnometrading.networking.sockets.SocketProbe;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 
 import java.io.IOException;
@@ -25,6 +26,29 @@ public abstract class AbstractSocketMessageClient extends SocketClient implement
         }
 
         return checkMessage(byteBuffer) ? 1 : 0;
+    }
+
+    /**
+     * Like {@link #readMessage()} but never blocks: reads from the socket only when it already has bytes waiting.
+     *
+     * @return an int < 0 if the socket is closed, 0 if there's no complete message yet, and 1 if there's a message
+     */
+    public int pollMessage() throws IOException {
+        if (checkMessage(this.readBuffer)) {
+            return 1;
+        }
+        final SocketProbe probe = probe();
+        if (probe == SocketProbe.IDLE) {
+            return 0;
+        }
+        if (probe == SocketProbe.DEAD) {
+            return -1;
+        }
+        final int bytes = this.read(this.readBuffer);
+        if (bytes < 0) {
+            return bytes;
+        }
+        return checkMessage(this.readBuffer) ? 1 : 0;
     }
 
     private boolean checkMessage(final ByteBuffer byteBuffer) throws IOException {

@@ -3,6 +3,7 @@ package group.gnometrading.networking.http;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,7 +30,7 @@ class LocalTestHttpServer implements AutoCloseable {
     private final Thread acceptThread;
 
     LocalTestHttpServer() throws IOException {
-        this.serverSocket = new ServerSocket(0);
+        this.serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
         this.acceptThread = new Thread(this::acceptLoop, "test-http-server");
         this.acceptThread.setDaemon(true);
         this.acceptThread.start();

@@ -2,43 +2,48 @@ package group.gnometrading.networking.http;
 
 import group.gnometrading.strings.GnomeString;
 import org.agrona.concurrent.EpochClock;
-import org.agrona.concurrent.SystemEpochClock;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.function.Supplier;
 
 /**
  * Wraps {@link HTTPClient} with retry-on-failure and proactive idle reconnect.
- * Not meant for multithreading use. Not suitable for hot-path order submission.
+ *
+ * <p>Retries never risk applying a request twice: GET, PUT and DELETE retry on a dropped connection, a missing
+ * response, a 429 or a 5xx; a POST retries only when it could not connect (nothing was sent) or got a 429. Other
+ * 4xx responses are returned as-is. Not meant for multithreading use. Not suitable for hot-path order submission.
  */
 public final class RetryableHTTPClient implements AutoCloseable {
 
-    private static final int DEFAULT_MAX_RETRIES = 2;
-    private static final long DEFAULT_IDLE_THRESHOLD_MS = 25_000;
+    private static final int STATUS_TOO_MANY_REQUESTS = 429;
+    private static final int STATUS_SERVER_ERROR = 500;
 
     private final int maxRetries;
     private final long idleThresholdMs;
     private final EpochClock clock;
     private final Supplier<HTTPClient> clientFactory;
+    private final long backoffMs;
 
     private HTTPClient httpClient;
     private long lastRequestTimeMs;
 
     public RetryableHTTPClient() {
-        this(DEFAULT_MAX_RETRIES, DEFAULT_IDLE_THRESHOLD_MS, SystemEpochClock.INSTANCE);
+        this(builder());
     }
 
-    public RetryableHTTPClient(final int maxRetries, final long idleThresholdMs, final EpochClock clock) {
-        this(maxRetries, idleThresholdMs, clock, HTTPClient::new);
+    RetryableHTTPClient(final RetryableHTTPClientBuilder settings) {
+        this.maxRetries = settings.maxRetries;
+        this.idleThresholdMs = settings.idleReconnectThresholdMs;
+        this.backoffMs = settings.backoffMs;
+        this.clock = settings.clock;
+        this.clientFactory = settings.clientFactory;
+        this.httpClient = this.clientFactory.get();
+        this.lastRequestTimeMs = this.clock.time();
     }
 
-    RetryableHTTPClient(final int maxRetries, final long idleThresholdMs, final EpochClock clock, final Supplier<HTTPClient> clientFactory) {
-        this.maxRetries = maxRetries;
-        this.idleThresholdMs = idleThresholdMs;
-        this.clock = clock;
-        this.clientFactory = clientFactory;
-        this.httpClient = clientFactory.get();
-        this.lastRequestTimeMs = clock.time();
+    public static RetryableHTTPClientBuilder builder() {
+        return new RetryableHTTPClientBuilder();
     }
 
     private void maybeReconnect(final HTTPProtocol protocol, final String host) {
@@ -58,6 +63,27 @@ public final class RetryableHTTPClient implements AutoCloseable {
         this.httpClient = clientFactory.get();
     }
 
+    /**
+     * Whether a failed response may be retried. With no response at all (status 0 or below) or a 5xx, the server
+     * may already have acted on the request, so only idempotent methods retry; a 429 means it refused the request
+     * outright, so anything may retry. Other 4xx responses would only fail again.
+     */
+    private static boolean shouldRetry(final int status, final boolean idempotent) {
+        if (status == STATUS_TOO_MANY_REQUESTS) {
+            return true;
+        }
+        return idempotent && (status <= 0 || status >= STATUS_SERVER_ERROR);
+    }
+
+    private void backoff(final int attempt) throws IOException {
+        try {
+            Thread.sleep(this.backoffMs * attempt);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("Interrupted while backing off before a retry");
+        }
+    }
+
     private HTTPResponse retryRequest(
             final HTTPProtocol protocol,
             final String host,
@@ -75,26 +101,47 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerKey5,
             final String headerValue5) throws IOException {
         maybeReconnect(protocol, host);
+        final boolean idempotent = method != HTTPMethod.POST;
         IOException lastException = null;
         HTTPResponse lastResponse = null;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+                backoff(attempt);
+            }
+            if (!idempotent) {
+                // A POST may only be retried while nothing has been sent, so connecting is done as its own step.
+                try {
+                    httpClient.prepareConnection(protocol, host);
+                } catch (IOException e) {
+                    lastException = e;
+                    resetClient();
+                    continue;
+                }
+            }
+            final HTTPResponse response;
             try {
-                lastResponse = switch (method) {
+                response = switch (method) {
                     case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case POST -> httpClient.post(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case PUT -> httpClient.put(protocol, host, path, body, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     default -> throw new IllegalStateException("Unsupported method: " + method);
                 };
-                lastRequestTimeMs = clock.time();
-                if (lastResponse.isSuccess()) {
-                    return lastResponse;
-                }
             } catch (IOException e) {
-                lastException = e;
                 lastRequestTimeMs = clock.time();
                 resetClient();
+                if (!idempotent) {
+                    throw e;
+                }
+                lastException = e;
+                continue;
             }
+            lastRequestTimeMs = clock.time();
+            if (response.isSuccess() || !shouldRetry(response.getStatusCode(), idempotent)) {
+                return response;
+            }
+            lastResponse = response;
+            lastException = null;
         }
         if (lastException != null) {
             throw lastException;
@@ -120,26 +167,47 @@ public final class RetryableHTTPClient implements AutoCloseable {
             final String headerKey5,
             final String headerValue5) throws IOException {
         maybeReconnect(protocol, host);
+        final boolean idempotent = method != HTTPMethod.POST;
         IOException lastException = null;
         HTTPResponse lastResponse = null;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+                backoff(attempt);
+            }
+            if (!idempotent) {
+                // A POST may only be retried while nothing has been sent, so connecting is done as its own step.
+                try {
+                    httpClient.prepareConnection(protocol, host);
+                } catch (IOException e) {
+                    lastException = e;
+                    resetClient();
+                    continue;
+                }
+            }
+            final HTTPResponse response;
             try {
-                lastResponse = switch (method) {
+                response = switch (method) {
                     case GET -> httpClient.get(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case DELETE -> httpClient.delete(protocol, host, path, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case POST -> httpClient.post(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     case PUT -> httpClient.put(protocol, host, path, body, bodyLength, headerKey1, headerValue1, headerKey2, headerValue2, headerKey3, headerValue3, headerKey4, headerValue4, headerKey5, headerValue5);
                     default -> throw new IllegalStateException("Unsupported method: " + method);
                 };
-                lastRequestTimeMs = clock.time();
-                if (lastResponse.isSuccess()) {
-                    return lastResponse;
-                }
             } catch (IOException e) {
-                lastException = e;
                 lastRequestTimeMs = clock.time();
                 resetClient();
+                if (!idempotent) {
+                    throw e;
+                }
+                lastException = e;
+                continue;
             }
+            lastRequestTimeMs = clock.time();
+            if (response.isSuccess() || !shouldRetry(response.getStatusCode(), idempotent)) {
+                return response;
+            }
+            lastResponse = response;
+            lastException = null;
         }
         if (lastException != null) {
             throw lastException;

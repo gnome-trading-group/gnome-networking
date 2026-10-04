@@ -7,6 +7,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef group_gnometrading_networking_sockets_NativeSocket_DEFAULT_CONNECT_TIMEOUT_MS
+#define group_gnometrading_networking_sockets_NativeSocket_DEFAULT_CONNECT_TIMEOUT_MS 10000L
+#undef group_gnometrading_networking_sockets_NativeSocket_DEFAULT_WRITE_TIMEOUT_MS
+#define group_gnometrading_networking_sockets_NativeSocket_DEFAULT_WRITE_TIMEOUT_MS 5000L
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    init
@@ -26,10 +30,10 @@ JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_s
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    connect0
- * Signature: (ILjava/net/InetAddress;I)I
+ * Signature: (ILjava/net/InetAddress;II)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_connect0
-  (JNIEnv *, jobject, jint, jobject, jint);
+  (JNIEnv *, jobject, jint, jobject, jint, jint);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
@@ -42,26 +46,18 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_c
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    read0
- * Signature: (IJI)I
+ * Signature: (IJIZI)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_read0
-  (JNIEnv *, jobject, jint, jlong, jint);
+  (JNIEnv *, jobject, jint, jlong, jint, jboolean, jint);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    write0
- * Signature: (IJI)I
+ * Signature: (IJII)I
  */
 JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_write0
-  (JNIEnv *, jobject, jint, jlong, jint);
-
-/*
- * Class:     group_gnometrading_networking_sockets_NativeSocket
- * Method:    configureBlocking0
- * Signature: (IZ)V
- */
-JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_configureBlocking0
-  (JNIEnv *, jobject, jint, jboolean);
+  (JNIEnv *, jobject, jint, jlong, jint, jint);
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
@@ -97,11 +93,27 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_s
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
- * Method:    setReadTimeout0
+ * Method:    setKeepAliveOptions0
+ * Signature: (IIII)V
+ */
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setKeepAliveOptions0
+  (JNIEnv *, jobject, jint, jint, jint, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    setBusyPoll0
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setReadTimeout0
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setBusyPoll0
   (JNIEnv *, jobject, jint, jint);
+
+/*
+ * Class:     group_gnometrading_networking_sockets_NativeSocket
+ * Method:    probe0
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_probe0
+  (JNIEnv *, jobject, jint);
 
 #ifdef __cplusplus
 }

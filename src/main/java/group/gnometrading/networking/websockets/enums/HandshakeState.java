@@ -7,6 +7,7 @@ public enum HandshakeState {
     INCOMPLETE("Handshake is being sent in multiple packets"),
     INVALID_PROTOCOL("An invalid protocol was sent by the server"),
     TIMEOUT("The handshake attempt expired"),
+    INVALID_HEADERS("The server's handshake response is missing a required header"),
     UNKNOWN("Unknown error occurred during the handshake");
 
     public final String description;

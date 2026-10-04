@@ -55,6 +55,21 @@ public interface DataFrame {
     Opcode getOpcode();
 
     /**
+     * @return true if the payload is masked, and so must be unmasked by {@link #copyPayloadData} before use
+     */
+    boolean isMasked();
+
+    /**
+     * @return the index in the wrapped buffer where the payload starts
+     */
+    int payloadOffset();
+
+    /**
+     * @return the payload's length in bytes
+     */
+    int payloadLength();
+
+    /**
      * Copy the payload data into a ByteBuffer.
      */
     void copyPayloadData(ByteBuffer other);

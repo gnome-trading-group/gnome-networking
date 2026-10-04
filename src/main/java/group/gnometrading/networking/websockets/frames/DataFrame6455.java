@@ -8,6 +8,8 @@ import java.util.Random;
 public class DataFrame6455 implements DataFrame {
 
     private static final ByteBuffer DEFAULT_MASK_KEY = ByteBuffer.allocate(4);
+    // Leaves room for the largest frame header without overflowing an int length.
+    private static final int MAX_PAYLOAD_LENGTH = Integer.MAX_VALUE - 16;
 
     static {
         DEFAULT_MASK_KEY.putInt(new Random().nextInt());
@@ -72,8 +74,9 @@ public class DataFrame6455 implements DataFrame {
 
         this.buffer.putInt(maskKey.getInt(0));
 
+        final int payloadStart = payload.position();
         for (int i = 0; i < payloadLength; i++) {
-            this.buffer.put((byte) (payload.get(i) ^ maskKey.get(i % 4)));
+            this.buffer.put((byte) (payload.get(payloadStart + i) ^ maskKey.get(i % 4)));
         }
     }
 
@@ -109,9 +112,13 @@ public class DataFrame6455 implements DataFrame {
         if (length == 126) {
             return readInt(offset + 2, 2);
         } else if (length == 127) {
-            // if this is lossy, it deserves to be. if you're sending me a packet > 2^32 bytes... no
-            // but if anyone ends up ever debugging this code and the issue turns out to be from downcasting this, sorry.
-            return readInt(offset + 2, 8);
+            long longLength = 0;
+            for (int i = 0; i < 8; i++) {
+                longLength = (longLength << 8) | (buffer.get(offset + 2 + i) & 0xFF);
+            }
+            // Anything too large to buffer is reported as the largest length, which no read buffer can hold, so
+            // the frame is rejected as an overflow rather than misread through a truncated or negative length.
+            return longLength < 0 || longLength > MAX_PAYLOAD_LENGTH ? MAX_PAYLOAD_LENGTH : (int) longLength;
         }
         return length;
     }
@@ -119,6 +126,21 @@ public class DataFrame6455 implements DataFrame {
     private int getMaskingKey() {
         int index = offset + 1 + this.getPayloadLengthOctets();
         return this.buffer.getInt(index);
+    }
+
+    @Override
+    public boolean isMasked() {
+        return this.masked();
+    }
+
+    @Override
+    public int payloadOffset() {
+        return offset + 1 + this.getPayloadLengthOctets() + (this.masked() ? 4 : 0);
+    }
+
+    @Override
+    public int payloadLength() {
+        return this.getPayloadLength();
     }
 
     @Override

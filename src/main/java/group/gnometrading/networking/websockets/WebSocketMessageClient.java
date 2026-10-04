@@ -20,7 +20,11 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
 
     private final URI uri;
     private final Draft draft;
-    public final DataFrame readFrame, writeFrame;
+    public final DataFrame readFrame;
+    // The reader thread (pongs) and others (pings, subscriptions) encode frames at the same time, and a frame
+    // object holds the buffer it writes into, so each thread gets its own.
+    private final ThreadLocal<DataFrame> encoders;
+    private final DataFrame writeFrame;
     private Map<String, String> headers = null;
 
     WebSocketMessageClient(
@@ -35,10 +39,11 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         this.uri = uri;
         this.readFrame = this.draft.createDataFrame();
         this.writeFrame = this.draft.createDataFrame();
+        this.encoders = ThreadLocal.withInitial(draft::createDataFrame);
     }
 
     private static InetSocketAddress parseURI(URI uri) {
-        int port = uri.getPort() == -1 ? (uri.getScheme().equals("wss") ? DEFAULT_WSS_PORT : DEFAULT_PORT) : uri.getPort();
+        int port = uri.getPort() == -1 ? ("wss".equalsIgnoreCase(uri.getScheme()) ? DEFAULT_WSS_PORT : DEFAULT_PORT) : uri.getPort();
         return new InetSocketAddress(uri.getHost(), port);
     }
     
@@ -49,16 +54,23 @@ class WebSocketMessageClient extends AbstractSocketMessageClient {
         this.headers.put(key, value);
     }
 
-    protected void sendHandshake() {
+    protected void sendHandshake(int timeoutMillis) {
         HandshakeInput input = new HandshakeInput(this.uri, this.headers);
-        HandshakeHandler.attemptHandshake(this, this.draft, input);
+        HandshakeHandler.attemptHandshake(this, this.draft, input, timeoutMillis);
     }
 
-    public int writeBuffer(ByteBuffer buffer) throws IOException {
+    /** Synchronized with {@link #writeWebSocketMessage}, so frames sent from two threads never interleave. */
+    public synchronized int writeBuffer(ByteBuffer buffer) throws IOException {
         return this.socket.write(buffer);
     }
 
-    public int writeWebSocketMessage(Opcode opcode, ByteBuffer buffer) throws IOException {
+    /** A frame encoder owned by the calling thread. */
+    DataFrame encoder() {
+        return this.encoders.get();
+    }
+
+    /** Synchronized because the write buffer and its encoder are shared by every thread that sends directly. */
+    public synchronized int writeWebSocketMessage(Opcode opcode, ByteBuffer buffer) throws IOException {
         this.writeBuffer.clear();
         this.writeFrame.wrap(this.writeBuffer).encode(opcode, buffer);
         this.writeBuffer.flip();

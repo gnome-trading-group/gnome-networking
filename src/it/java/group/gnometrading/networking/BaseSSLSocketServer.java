@@ -75,7 +75,17 @@ public abstract class BaseSSLSocketServer extends BaseSocketServer implements Ru
 
         if (doHandshake(client, engine)) {
             if (selector.isOpen()) {
-                client.register(selector, SelectionKey.OP_READ, engine);
+                SelectionKey clientKey = client.register(selector, SelectionKey.OP_READ, engine);
+                // The client's first records can arrive in the same read as the end of its handshake; they are
+                // left in peerNetData and would otherwise wait for a read event that may never come.
+                if (peerNetData.position() > 0) {
+                    try {
+                        handleRead(clientKey);
+                    } catch (IOException e) {
+                        // Only this client is broken; letting it escape would close the listening socket.
+                        client.close();
+                    }
+                }
             }
         } else {
             client.close();

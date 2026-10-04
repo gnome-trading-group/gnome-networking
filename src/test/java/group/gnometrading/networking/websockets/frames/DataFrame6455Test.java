@@ -572,4 +572,24 @@ class DataFrame6455Test {
             }, 3, 7, 7, (byte) 0x02, new byte[] { 0x11 ^ 0x12 })
         );
     }
+
+    @Test
+    void testEncodeUsesOnlyTheBytesFromThePayloadsPosition() {
+        ByteBuffer payload = ByteBuffer.wrap("xxxhello".getBytes());
+        payload.position(3);
+        ByteBuffer out = ByteBuffer.allocate(64);
+
+        DataFrame6455 encoder = new DataFrame6455(0x01020304);
+        encoder.wrap(out).encode(Opcode.TEXT, payload);
+        out.flip();
+
+        DataFrame6455 decoder = new DataFrame6455();
+        decoder.wrap(out);
+        assertFalse(decoder.isIncomplete());
+        assertEquals(5, decoder.payloadLength());
+        ByteBuffer unmasked = ByteBuffer.allocate(5);
+        decoder.copyPayloadData(unmasked);
+        assertArrayEquals("hello".getBytes(), unmasked.array());
+        assertEquals(3, payload.position(), "encoding must not consume the payload");
+    }
 }

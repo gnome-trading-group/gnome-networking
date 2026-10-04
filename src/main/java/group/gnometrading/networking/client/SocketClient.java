@@ -1,6 +1,7 @@
 package group.gnometrading.networking.client;
 
 import group.gnometrading.networking.sockets.GnomeSocket;
+import group.gnometrading.networking.sockets.SocketProbe;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 
 import java.io.IOException;
@@ -42,7 +43,15 @@ public class SocketClient implements Client {
         directBuffer.flip();
         len = Math.min(len, directBuffer.remaining());
 
-        int bytes = this.socket.write(directBuffer, len);
+        final int bytes;
+        try {
+            bytes = this.socket.write(directBuffer, len);
+        } catch (IOException | RuntimeException e) {
+            // Back to fill mode: left flipped, the next write would flip again and drop the queued bytes.
+            directBuffer.position(directBuffer.limit());
+            directBuffer.limit(directBuffer.capacity());
+            throw e;
+        }
 
         if (bytes > 0) {
             if (directBuffer.remaining() == 0) {
@@ -72,11 +81,23 @@ public class SocketClient implements Client {
             // There's unconsumed bytes, reverse flip
             directBuffer.position(directBuffer.limit());
             directBuffer.limit(directBuffer.capacity());
+        } else {
+            // Every byte is unconsumed, so reading now would overwrite them.
+            throw new IOException("Read buffer of " + directBuffer.capacity()
+                    + " bytes is full without a complete message; it needs to be larger");
         }
 
         len = Math.min(len, directBuffer.remaining());
-        int bytes = normalize(this.socket.read(directBuffer, len));
+        final int bytes;
+        try {
+            bytes = normalize(this.socket.read(directBuffer, len));
+        } catch (IOException | RuntimeException e) {
+            // Back to read mode: left in fill mode, the next read would parse already-consumed bytes as new data.
+            directBuffer.flip();
+            throw e;
+        }
         if (bytes < 0) {
+            directBuffer.flip();
             return bytes;
         }
 
@@ -145,6 +166,26 @@ public class SocketClient implements Client {
     @Override
     public void setReadTimeout(int millis) throws IOException {
         this.socket.setReadTimeout(millis);
+    }
+
+    @Override
+    public void setConnectTimeout(int millis) {
+        this.socket.setConnectTimeout(millis);
+    }
+
+    @Override
+    public void setKeepAlive(int idleSeconds, int intervalSeconds, int count) throws IOException {
+        this.socket.setKeepAlive(idleSeconds, intervalSeconds, count);
+    }
+
+    @Override
+    public void setBusyPoll(int micros) throws IOException {
+        this.socket.setBusyPoll(micros);
+    }
+
+    @Override
+    public SocketProbe probe() {
+        return this.socket.probe();
     }
 
     @Override

@@ -65,6 +65,10 @@ public class RFC6455 extends Draft {
         return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
 
+    private static boolean isHeader(final StringBuilder line, final String lowercaseName) {
+        return line.indexOf(lowercaseName) == 0;
+    }
+
     @Override
     public HandshakeState parseHandshake(ByteBuffer buffer) {
         int index = 0;
@@ -85,6 +89,7 @@ public class RFC6455 extends Draft {
         while (index < buffer.remaining() && buffer.get(index++) != '\n');
 
         int headers = 0; // header bitmap, should be 0b111
+        boolean reachedEnd = false;
         StringBuilder builder = new StringBuilder();
 
         while (index < buffer.remaining()) {
@@ -96,20 +101,26 @@ public class RFC6455 extends Draft {
 
             index++;
             // We are at a \r, check if there's a header
-            if (builder.indexOf("upgrade: websocket") != -1) {
+            if (isHeader(builder, "upgrade:") && builder.indexOf("websocket") != -1) {
                 headers |= 0b1;
-            } else if (builder.indexOf("connection: upgrade") != -1) {
+            } else if (isHeader(builder, "connection:") && builder.indexOf("upgrade") != -1) {
                 headers |= 0b10;
             } else if (builder.indexOf("sec-websocket-accept") != -1) { // Hmm.. should we verify this? Nah
                 headers |= 0b100;
-            } else if (builder.length() == 1 && builder.charAt(0) == '\r') {
-                break; // We've reached the end
+            } else if (builder.length() == 0 || (builder.length() == 1 && builder.charAt(0) == '\r')) {
+                // The blank line ending the headers: "\r\n", or a bare "\n" from a lenient server.
+                reachedEnd = true;
+                break;
             }
             builder.setLength(0);
         }
 
-        if (headers != 0b111) {
+        if (!reachedEnd) {
+            // Matching before the blank line would leave the remaining headers to be parsed as frames.
             return HandshakeState.INCOMPLETE;
+        }
+        if (headers != 0b111) {
+            return HandshakeState.INVALID_HEADERS;
         }
 
         buffer.position(buffer.position() + index); // Consume the bytes used

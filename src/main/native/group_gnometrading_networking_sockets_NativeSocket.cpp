@@ -125,33 +125,26 @@ Java_group_gnometrading_networking_sockets_NativeSocket_socket(JNIEnv *env,
     }
 #endif
 
+#if defined(SO_NOSIGPIPE)
+    int noSigPipe = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));
+#endif
+
     return fd;
 }
 
 /*
  * Class:     group_gnometrading_networking_sockets_NativeSocket
  * Method:    connect0
- * Signature: (ILjava/net/InetAddress;I)I
+ * Signature: (ILjava/net/InetAddress;II)I
  */
 JNIEXPORT jint JNICALL
 Java_group_gnometrading_networking_sockets_NativeSocket_connect0(
-    JNIEnv *env, jobject cl, jint fd, jobject iao, jint port) {
-    SOCKETADDRESS sa;
-    int sa_len = 0;
-    int rv;
-
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, JNI_TRUE) != 0) {
+    JNIEnv *env, jobject cl, jint fd, jobject iao, jint port, jint timeoutMillis) {
+    // The fd stays non-blocking: blocking reads are emulated with poll so that every read and write can be
+    // bounded by a deadline (macOS ignores MSG_DONTWAIT on sends to a blocking socket).
+    if (connectWithTimeout(env, fd, iao, port, deadlineAfter(timeoutMillis)) != 0) {
         return IOS_THROWN;
-    }
-
-    rv = connect(fd, &sa.sa, sa_len);
-    if (rv != 0) {
-        if (errno == EINPROGRESS) {
-            return IOS_UNAVAILABLE;
-        } else if (errno == EINTR) {
-            return IOS_INTERRUPTED;
-        }
-        return handleSocketError(env, errno);
     }
     return 1;
 }
@@ -179,20 +172,39 @@ Java_group_gnometrading_networking_sockets_NativeSocket_close0(JNIEnv *env,
  */
 JNIEXPORT jint JNICALL
 Java_group_gnometrading_networking_sockets_NativeSocket_read0(
-    JNIEnv *env, jobject, jint fd, jlong address, jint len) {
+    JNIEnv *env, jobject, jint fd, jlong address, jint len, jboolean blocking, jint timeoutMillis) {
+    if (len <= 0) {
+        return 0;
+    }
     void *buf = (void *)jlong_to_ptr(address);
-    jint n = read(fd, buf, len);
-    
-    if (n == 0) {
-        return -1;  // EOF - connection closed by peer
-    }
-    if (n == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-            return 0;  // Return 0 for temporary unavailability
+    const long deadline = blocking ? deadlineAfter(timeoutMillis) : 0;
+    while (true) {
+        const ssize_t n = read(fd, buf, len);
+        if (n > 0) {
+            return (jint)n;
         }
-        return -1;  // Return -1 for actual errors
+        if (n == 0) {
+            return -1;  // EOF - connection closed by peer
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            throwWithErrno(env, JNU_JAVAIOPKG "IOException", "Read failed", errno);
+            return IOS_THROWN;
+        }
+        if (!blocking) {
+            return 0;
+        }
+        const int ready = pollUntil(fd, POLLIN, deadline);
+        if (ready == POLL_TIMEOUT) {
+            return 0;
+        }
+        if (ready == POLL_ERROR) {
+            throwWithErrno(env, JNU_JAVAIOPKG "IOException", "Read failed", errno);
+            return IOS_THROWN;
+        }
     }
-    return n;
 }
 
 /*
@@ -203,29 +215,40 @@ Java_group_gnometrading_networking_sockets_NativeSocket_read0(
 JNIEXPORT jint JNICALL
 Java_group_gnometrading_networking_sockets_NativeSocket_write0(JNIEnv *env,
                                                                jobject, jint fd,
-                                                               jlong address, jint len) {
-    void *buf = (void *)jlong_to_ptr(address);
-    jint n = write(fd, buf, len);
-    
-    if (n == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-            return 0;  // Return 0 for temporary unavailability
+                                                               jlong address, jint len, jint timeoutMillis) {
+    // Writes all |len| bytes or throws: a request or frame cut off part way would corrupt the stream.
+    const char *buf = (const char *)jlong_to_ptr(address);
+    const long deadline = deadlineAfter(timeoutMillis);
+    jint written = 0;
+    while (written < len) {
+#if defined(MSG_NOSIGNAL)
+        const ssize_t n = send(fd, buf + written, len - written, MSG_NOSIGNAL | MSG_DONTWAIT);
+#else
+        const ssize_t n = send(fd, buf + written, len - written, MSG_DONTWAIT);
+#endif
+        if (n > 0) {
+            written += (jint)n;
+            continue;
         }
-        return -1;  // Return -1 for actual errors
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            const int ready = pollUntil(fd, POLLOUT, deadline);
+            if (ready == POLL_READY) {
+                continue;
+            }
+            if (ready == POLL_TIMEOUT) {
+                JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException", "Write timed out");
+            } else {
+                throwWithErrno(env, JNU_JAVAIOPKG "IOException", "Write failed", errno);
+            }
+            return IOS_THROWN;
+        }
+        throwWithErrno(env, JNU_JAVAIOPKG "IOException", "Write failed", n < 0 ? errno : EIO);
+        return IOS_THROWN;
     }
-    return n;
-}
-
-/*
- * Class:     group_gnometrading_networking_sockets_NativeSocket
- * Method:    configureBlocking0
- * Signature: (IZ)V
- */
-JNIEXPORT void JNICALL
-Java_group_gnometrading_networking_sockets_NativeSocket_configureBlocking0(
-    JNIEnv *env, jobject, jint fd, jboolean blocking) {
-    if (configureBlocking(fd, blocking) < 0)
-        JNU_ThrowIOExceptionWithLastError(env, "Configure blocking failed");
+    return written;
 }
 
 /*
@@ -278,14 +301,19 @@ JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_s
     }
 }
 
-JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setReadTimeout0
-  (JNIEnv* env, jobject obj, jint fd, jint millis) {
-    struct timeval tv;
-    tv.tv_sec = millis / 1000;
-    tv.tv_usec = (millis % 1000) * 1000;
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        JNU_ThrowIOExceptionWithLastError(env, "Set read timeout failed");
-    }
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setKeepAliveOptions0
+  (JNIEnv* env, jobject obj, jint fd, jint idleSeconds, jint intervalSeconds, jint count) {
+    setKeepAliveOptions(env, fd, idleSeconds, intervalSeconds, count);
+}
+
+JNIEXPORT void JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_setBusyPoll0
+  (JNIEnv* env, jobject obj, jint fd, jint micros) {
+    setBusyPoll(env, fd, micros);
+}
+
+JNIEXPORT jint JNICALL Java_group_gnometrading_networking_sockets_NativeSocket_probe0
+  (JNIEnv* env, jobject obj, jint fd) {
+    return probeConnection(fd);
 }
 
 #ifdef __cplusplus

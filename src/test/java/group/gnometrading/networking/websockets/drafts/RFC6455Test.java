@@ -185,7 +185,7 @@ class RFC6455Test {
                 "Connection: Upgrade\r\n" +
                 "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n" +
                 "\r\n",
-                HandshakeState.INCOMPLETE
+                HandshakeState.INVALID_HEADERS
             ),
 
             // Missing Connection header
@@ -194,7 +194,7 @@ class RFC6455Test {
                 "Upgrade: websocket\r\n" +
                 "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n" +
                 "\r\n",
-                HandshakeState.INCOMPLETE
+                HandshakeState.INVALID_HEADERS
             ),
 
             // Missing Sec-WebSocket-Accept header
@@ -203,7 +203,7 @@ class RFC6455Test {
                 "Upgrade: websocket\r\n" +
                 "Connection: Upgrade\r\n" +
                 "\r\n",
-                HandshakeState.INCOMPLETE
+                HandshakeState.INVALID_HEADERS
             ),
 
             // Empty response
