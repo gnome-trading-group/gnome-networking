@@ -12,7 +12,8 @@ jobs:
       packages: write
     strategy:
       matrix:
-        os: [{os: ubuntu-latest, classifier: linux}, {os: macos-latest, classifier: macos}]
+        # Pinned: libNativeSockets.so must not need a newer glibc than the Ubuntu 24.04 strategy AMI.
+        os: [{os: ubuntu-24.04, classifier: linux}, {os: macos-latest, classifier: macos}]
 
     steps:
       - name: Checkout code
