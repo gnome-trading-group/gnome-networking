@@ -51,6 +51,18 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
             final int readBufferSize,
             final int writeBufferSize,
             final GnomeSocketFactory socketFactory) throws IOException {
+        this(protocol, host, port, readBufferSize, writeBufferSize, socketFactory, new byte[0][]);
+    }
+
+    /** @param capturedNames lowercase names of the response headers to capture, see {@link HTTPDecoder} */
+    HTTPSocketMessageClient(
+            final HTTPProtocol protocol,
+            final String host,
+            final int port,
+            final int readBufferSize,
+            final int writeBufferSize,
+            final GnomeSocketFactory socketFactory,
+            final byte[][] capturedNames) throws IOException {
         super(
                 parseURL(host, port),
                 socketFactory != null ? socketFactory : parseSocketFactory(protocol),
@@ -58,7 +70,7 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
                 writeBufferSize);
         this.host = host;
         this.protocol = protocol;
-        this.httpDecoder = new HTTPDecoder();
+        this.httpDecoder = new HTTPDecoder(capturedNames);
         this.httpEncoder = new HTTPEncoder();
     }
 

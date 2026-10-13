@@ -3,7 +3,13 @@ package group.gnometrading.networking.http;
 import group.gnometrading.networking.sockets.NativeSocket;
 import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+
 public final class HTTPClientBuilder {
+
+    /** The most response headers a client can capture. */
+    public static final int MAX_CAPTURED_HEADERS = 8;
 
     boolean keepAlive = true;
     int keepAliveIdleSeconds;
@@ -17,6 +23,8 @@ public final class HTTPClientBuilder {
     int writeBufferSize = HTTPSocketMessageClient.DEFAULT_HTTP_WRITE_BUFFER_SIZE;
     int connectionsPerHost = HTTPClient.DEFAULT_CONNECTIONS_PER_HOST;
     GnomeSocketFactory socketFactory;
+    RequestGate requestGate;
+    byte[][] capturedHeaders = new byte[0][];
 
     HTTPClientBuilder() {}
 
@@ -90,6 +98,31 @@ public final class HTTPClientBuilder {
     /** How many requests to one host may be in flight at once through {@link HTTPClient#send}. */
     public HTTPClientBuilder withConnectionsPerHost(final int connections) {
         this.connectionsPerHost = connections;
+        return this;
+    }
+
+    /** Asked before every request is sent, and told every response; see {@link RequestGate}. */
+    public HTTPClientBuilder withRequestGate(final RequestGate gate) {
+        this.requestGate = gate;
+        return this;
+    }
+
+    /**
+     * Response headers whose values each response keeps, read by position with {@link HTTPResponse#header} and
+     * the like: the first name is index 0. Names are matched ignoring case.
+     */
+    public HTTPClientBuilder captureHeaders(final String... names) {
+        if (names.length > MAX_CAPTURED_HEADERS) {
+            throw new IllegalArgumentException("At most " + MAX_CAPTURED_HEADERS + " headers can be captured");
+        }
+        final byte[][] lowercase = new byte[names.length][];
+        for (int i = 0; i < names.length; i++) {
+            if (names[i] == null || names[i].isEmpty()) {
+                throw new IllegalArgumentException("A captured header needs a name");
+            }
+            lowercase[i] = names[i].toLowerCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII);
+        }
+        this.capturedHeaders = lowercase;
         return this;
     }
 

@@ -26,6 +26,8 @@ public class HTTPClient implements AutoCloseable {
     /** Without an explicit response timeout, a response may take this many read timeouts. */
     private static final int DEFAULT_READ_TIMEOUTS_PER_RESPONSE = 3;
     public static final int DEFAULT_CONNECTIONS_PER_HOST = 1;
+    /** Returned by {@link #send} when the client's {@link RequestGate} refused the request: nothing was sent. */
+    public static final int SEND_REFUSED = -2;
 
     private final GnomeMap<String, HostConnections> hosts;
     private final HTTPResponse httpResponse;
@@ -45,6 +47,8 @@ public class HTTPClient implements AutoCloseable {
     private final int readBufferSize;
     private final int writeBufferSize;
     private final int connectionsPerHost;
+    private final RequestGate requestGate;
+    private final byte[][] capturedHeaders;
 
     public HTTPClient() {
         this(builder());
@@ -67,7 +71,9 @@ public class HTTPClient implements AutoCloseable {
             throw new IllegalArgumentException("connectionsPerHost must be at least 1");
         }
         this.hosts = new PooledHashMap<>();
-        this.httpResponse = new HTTPResponse();
+        this.capturedHeaders = settings.capturedHeaders;
+        this.requestGate = settings.requestGate;
+        this.httpResponse = new HTTPResponse(settings.capturedHeaders.length);
         this.body = ByteBuffer.allocate(settings.readBufferSize);
         this.keepAlive = settings.keepAlive;
         this.keepAliveIdleSeconds = settings.keepAliveIdleSeconds;
@@ -113,6 +119,10 @@ public class HTTPClient implements AutoCloseable {
             final String headerKey5,
             final String headerValue5
     ) throws IOException {
+        final int tag = this.requestGate == null ? 0 : this.requestGate.beforeRequest(method, path);
+        if (tag == RequestGate.REFUSE) {
+            return this.httpResponse.refuse();
+        }
         final HostConnections connections = hostConnections(host);
         final int index = idleConnection(connections, host);
         HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
@@ -135,7 +145,7 @@ public class HTTPClient implements AutoCloseable {
             }
         }
 
-        return awaitResponse(connections, index, client, bytesWritten);
+        return answered(tag, awaitResponse(connections, index, client, bytesWritten));
     }
 
     private HTTPResponse request(
@@ -155,6 +165,10 @@ public class HTTPClient implements AutoCloseable {
             final String headerValue4,
             final String headerKey5,
             final String headerValue5) throws IOException {
+        final int tag = this.requestGate == null ? 0 : this.requestGate.beforeRequest(method, path);
+        if (tag == RequestGate.REFUSE) {
+            return this.httpResponse.refuse();
+        }
         final HostConnections connections = hostConnections(host);
         final int index = idleConnection(connections, host);
         HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
@@ -176,7 +190,14 @@ public class HTTPClient implements AutoCloseable {
             }
         }
 
-        return awaitResponse(connections, index, client, bytesWritten);
+        return answered(tag, awaitResponse(connections, index, client, bytesWritten));
+    }
+
+    private HTTPResponse answered(final int tag, final HTTPResponse response) {
+        if (this.requestGate != null) {
+            this.requestGate.afterResponse(tag, response);
+        }
+        return response;
     }
 
     private HTTPResponse awaitResponse(
@@ -224,14 +245,17 @@ public class HTTPClient implements AutoCloseable {
         // Flipped even when empty: a cleared buffer would otherwise expose the previous response's bytes.
         this.body.flip();
 
+        final int status = decoder.getStatus();
+        this.httpResponse.update(status >= 200 && status < 300, status, this.body);
+        // Before the connection can be closed: the values are read from its buffer.
+        this.httpResponse.captureHeaders(decoder);
+
         // Bytes beyond the response mean the server sent something unasked for; whatever it is would be read as
         // the reply to the next request.
         if (decoder.shouldClose() || client.getReadBuffer().hasRemaining()) {
             discardConnection(connections, index);
         }
-
-        final int status = decoder.getStatus();
-        return this.httpResponse.update(status >= 200 && status < 300, status, this.body);
+        return this.httpResponse;
     }
 
     /**
@@ -274,7 +298,8 @@ public class HTTPClient implements AutoCloseable {
     /**
      * Writes a request on an idle connection to {@code host} and returns without waiting for the response.
      *
-     * @return the connection carrying the request, to pass to {@link #poll}; -1 if every connection is busy
+     * @return the connection carrying the request, to pass to {@link #poll}; -1 if every connection is busy;
+     *     {@link #SEND_REFUSED} if the client's {@link RequestGate} refused it
      */
     public int send(
             final HTTPProtocol protocol,
@@ -298,6 +323,10 @@ public class HTTPClient implements AutoCloseable {
         if (index < 0) {
             return -1;
         }
+        final int tag = this.requestGate == null ? 0 : this.requestGate.beforeRequest(method, path);
+        if (tag == RequestGate.REFUSE) {
+            return SEND_REFUSED;
+        }
         HTTPSocketMessageClient client = readyConnection(connections, index, protocol, host);
         int bytesWritten;
         try {
@@ -319,6 +348,7 @@ public class HTTPClient implements AutoCloseable {
             }
         }
         connections.inFlight[index] = true;
+        connections.tags[index] = tag;
         return index;
     }
 
@@ -348,9 +378,9 @@ public class HTTPClient implements AutoCloseable {
         connections.inFlight[connection] = false;
         if (message < 0) {
             discardConnection(connections, connection);
-            return this.httpResponse.update(false, -1, null);
+            return answered(connections.tags[connection], this.httpResponse.update(false, -1, null));
         }
-        return completeResponse(connections, connection, client);
+        return answered(connections.tags[connection], completeResponse(connections, connection, client));
     }
 
     /** Gives up on a request from {@link #send}; its connection is closed so the late response is never read. */
@@ -406,7 +436,13 @@ public class HTTPClient implements AutoCloseable {
         if (client == null || client.protocol() != protocol) {
             final int connectPort = this.port > 0 ? this.port : HTTPSocketMessageClient.parsePort(protocol);
             client = new HTTPSocketMessageClient(
-                    protocol, host, connectPort, this.readBufferSize, this.writeBufferSize, this.socketFactory);
+                    protocol,
+                    host,
+                    connectPort,
+                    this.readBufferSize,
+                    this.writeBufferSize,
+                    this.socketFactory,
+                    this.capturedHeaders);
             connections.clients[index] = client;
         }
         client.setConnectTimeout(this.connectTimeoutMs);
@@ -442,10 +478,13 @@ public class HTTPClient implements AutoCloseable {
     private static final class HostConnections {
         final HTTPSocketMessageClient[] clients;
         final boolean[] inFlight;
+        // The request gate's tag for each in-flight request from send, handed back when its response arrives.
+        final int[] tags;
 
         HostConnections(final int size) {
             this.clients = new HTTPSocketMessageClient[size];
             this.inFlight = new boolean[size];
+            this.tags = new int[size];
         }
 
         int idleIndex() {

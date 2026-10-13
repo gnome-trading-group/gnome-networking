@@ -315,6 +315,22 @@ class HTTPDecoderTest {
         return new String(destination.array(), StandardCharsets.US_ASCII);
     }
 
+    @Test
+    void testContentLengthAllowsSurroundingWhitespace() throws IOException {
+        HTTPDecoder decoder = new HTTPDecoder();
+        decoder.wrap(ByteBuffer.wrap(linesWithBody("ab".getBytes(), "HTTP/1.1 200 OK", "Content-Length: \t2 \t").getBytes()));
+
+        assertTrue(decoder.isComplete());
+        assertEquals(2, decoder.contentLength());
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"1 2", "-1", "+2", "2a", "", "2147483648"})
+    void testMalformedContentLengthThrows(String value) {
+        String response = lines("HTTP/1.1 200 OK", "Content-Length: " + value);
+        assertThrows(IOException.class, () -> new HTTPDecoder().wrap(ByteBuffer.wrap(response.getBytes())));
+    }
+
     private static String lines(String... lines) {
         StringBuilder res = new StringBuilder();
         for (String l : lines) {

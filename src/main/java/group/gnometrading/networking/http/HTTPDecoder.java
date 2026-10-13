@@ -1,7 +1,12 @@
 package group.gnometrading.networking.http;
 
+import group.gnometrading.strings.MutableString;
+import group.gnometrading.utils.AsciiParsing;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * Parses one HTTP/1.1 response from the front of a buffer. A chunked body is reassembled in place, in the buffer
@@ -17,12 +22,34 @@ public class HTTPDecoder {
     private static final int STATUS_CONTINUE_CLASS = 100;
     private static final int STATUS_SWITCHING_PROTOCOLS = 101;
     private static final int STATUS_SUCCESS_CLASS = 200;
-    private static final byte LOWERCASE_BIT = 0x20;
+    private static final byte[] CONTENT_LENGTH = ascii("content-length");
+    private static final byte[] TRANSFER_ENCODING = ascii("transfer-encoding");
+    private static final byte[] CONNECTION = ascii("connection");
+    private static final byte[] CHUNKED = ascii("chunked");
+    private static final byte[] CLOSE = ascii("close");
+    private static final byte[] KEEP_ALIVE = ascii("keep-alive");
+    private static final byte[][] NO_CAPTURED_HEADERS = new byte[0][];
+
+    private final byte[][] capturedNames;
+    private final int[] capturedStart;
+    private final int[] capturedEnd;
 
     private ByteBuffer buffer;
     private boolean completed;
     private boolean closeConnection;
     private int bodyOffset, status, contentLength;
+
+    public HTTPDecoder() {
+        this(NO_CAPTURED_HEADERS);
+    }
+
+    /** @param capturedNames lowercase names of the headers whose values the caller wants from each response */
+    HTTPDecoder(final byte[][] capturedNames) {
+        this.capturedNames = capturedNames;
+        this.capturedStart = new int[capturedNames.length];
+        this.capturedEnd = new int[capturedNames.length];
+        Arrays.fill(this.capturedStart, -1);
+    }
 
     public void wrap(final ByteBuffer buffer) throws IOException {
         this.buffer = buffer;
@@ -64,6 +91,8 @@ public class HTTPDecoder {
             return -1;
         }
         final int status = parseStatus(start, statusLineEnd);
+        // Reset per response: an interim 1xx's headers are not the real response's.
+        Arrays.fill(this.capturedStart, -1);
 
         int length = NO_LENGTH;
         boolean chunked = false;
@@ -85,15 +114,17 @@ public class HTTPDecoder {
 
             final int colon = indexOf((byte) ':', lineStart, contentEnd);
             if (colon > 0) {
-                final int valueStart = skipSpaces(colon + 1, contentEnd);
-                if (nameEquals(lineStart, colon, "content-length")) {
-                    length = parseDecimal(valueStart, contentEnd);
-                } else if (nameEquals(lineStart, colon, "transfer-encoding")) {
-                    chunked = containsIgnoreCase(valueStart, contentEnd, "chunked");
-                } else if (nameEquals(lineStart, colon, "connection")) {
-                    this.closeConnection = containsIgnoreCase(valueStart, contentEnd, "close");
-                    keepAlive = containsIgnoreCase(valueStart, contentEnd, "keep-alive");
+                final int valueStart = AsciiParsing.skipSpacesAndTabs(this.buffer, colon + 1, contentEnd);
+                final int valueEnd = AsciiParsing.trimSpacesAndTabs(this.buffer, valueStart, contentEnd);
+                if (nameEquals(lineStart, colon, CONTENT_LENGTH)) {
+                    length = parseContentLength(valueStart, valueEnd);
+                } else if (nameEquals(lineStart, colon, TRANSFER_ENCODING)) {
+                    chunked = contains(valueStart, valueEnd, CHUNKED);
+                } else if (nameEquals(lineStart, colon, CONNECTION)) {
+                    this.closeConnection = contains(valueStart, valueEnd, CLOSE);
+                    keepAlive = contains(valueStart, valueEnd, KEEP_ALIVE);
                 }
+                captureHeader(lineStart, colon, valueStart, valueEnd);
             }
             lineStart = lineEnd + 1;
         }
@@ -147,7 +178,7 @@ public class HTTPDecoder {
         int status = 0;
         for (int i = space + 1; i <= space + STATUS_DIGITS; i++) {
             final byte digit = this.buffer.get(i);
-            if (digit < '0' || digit > '9') {
+            if (!AsciiParsing.isDigit(digit)) {
                 throw new IOException("HTTP response has an invalid status code");
             }
             status = status * 10 + (digit - '0');
@@ -248,27 +279,15 @@ public class HTTPDecoder {
         return size;
     }
 
-    private int parseDecimal(final int start, final int end) throws IOException {
-        int value = 0;
-        int digits = 0;
-        for (int i = start; i < end; i++) {
-            final byte at = this.buffer.get(i);
-            if (at == ' ' || at == '\t') {
-                break;
-            }
-            if (at < '0' || at > '9') {
-                throw new IOException("HTTP response has an invalid Content-Length");
-            }
-            if (value > (Integer.MAX_VALUE - (at - '0')) / 10) {
-                throw new IOException("HTTP response has a Content-Length too large to hold");
-            }
-            value = value * 10 + (at - '0');
-            digits++;
-        }
-        if (digits == 0) {
+    private int parseContentLength(final int start, final int end) throws IOException {
+        final long length = AsciiParsing.parseNaturalLong(this.buffer, start, end, NO_LENGTH);
+        if (length == NO_LENGTH) {
             throw new IOException("HTTP response has an invalid Content-Length");
         }
-        return value;
+        if (length > Integer.MAX_VALUE) {
+            throw new IOException("HTTP response has a Content-Length too large to hold");
+        }
+        return (int) length;
     }
 
     private int indexOf(final byte target, final int from, final int to) {
@@ -280,38 +299,27 @@ public class HTTPDecoder {
         return -1;
     }
 
-    private int skipSpaces(final int from, final int to) {
-        int i = from;
-        while (i < to && (this.buffer.get(i) == ' ' || this.buffer.get(i) == '\t')) {
-            i++;
+    private void captureHeader(final int nameStart, final int nameEnd, final int valueStart, final int valueEnd) {
+        for (int i = 0; i < this.capturedNames.length; i++) {
+            if (nameEquals(nameStart, nameEnd, this.capturedNames[i])) {
+                this.capturedStart[i] = valueStart;
+                this.capturedEnd[i] = valueEnd;
+                return;
+            }
         }
-        return i;
     }
 
     /** Header names are case-insensitive; {@code lowercase} must be lowercase. */
-    private boolean nameEquals(final int start, final int end, final String lowercase) {
-        if (end - start != lowercase.length()) {
-            return false;
-        }
-        for (int i = 0; i < lowercase.length(); i++) {
-            if (toLower(this.buffer.get(start + i)) != lowercase.charAt(i)) {
-                return false;
-            }
-        }
-        return true;
+    private boolean nameEquals(final int start, final int end, final byte[] lowercase) {
+        return AsciiParsing.equalsIgnoreCase(this.buffer, start, end, lowercase);
     }
 
-    private boolean containsIgnoreCase(final int start, final int end, final String lowercase) {
-        for (int i = start; i + lowercase.length() <= end; i++) {
-            if (nameEquals(i, i + lowercase.length(), lowercase)) {
-                return true;
-            }
-        }
-        return false;
+    private boolean contains(final int start, final int end, final byte[] lowercase) {
+        return AsciiParsing.indexOfIgnoreCase(this.buffer, start, end, lowercase) >= 0;
     }
 
-    private static byte toLower(final byte value) {
-        return value >= 'A' && value <= 'Z' ? (byte) (value | LOWERCASE_BIT) : value;
+    private static byte[] ascii(final String text) {
+        return text.getBytes(StandardCharsets.US_ASCII);
     }
 
     public boolean isComplete() {
@@ -333,6 +341,26 @@ public class HTTPDecoder {
 
     public int getStatus() {
         return this.status;
+    }
+
+    /**
+     * Copies the value of the captured header at {@code index} into {@code destination}, cut to its capacity.
+     *
+     * @return false if the response didn't have the header
+     */
+    boolean copyCapturedHeader(final int index, final MutableString destination) {
+        final int start = this.capturedStart[index];
+        if (start < 0) {
+            return false;
+        }
+        final byte[] bytes = destination.getBytes();
+        final int length = Math.min(this.capturedEnd[index] - start, bytes.length);
+        for (int i = 0; i < length; i++) {
+            bytes[i] = this.buffer.get(start + i);
+        }
+        destination.reset();
+        destination.setLength(length);
+        return true;
     }
 
     public void copyBody(final ByteBuffer destination) {
