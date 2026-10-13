@@ -245,6 +245,7 @@ public class HTTPClient implements AutoCloseable {
         // Flipped even when empty: a cleared buffer would otherwise expose the previous response's bytes.
         this.body.flip();
 
+        connections.lastUsedNanos[index] = System.nanoTime();
         final int status = decoder.getStatus();
         this.httpResponse.update(status >= 200 && status < 300, status, this.body);
         // Before the connection can be closed: the values are read from its buffer.
@@ -293,6 +294,31 @@ public class HTTPClient implements AutoCloseable {
      */
     public void keepWarm(final HTTPProtocol protocol, final String host) throws IOException {
         connect(protocol, host);
+    }
+
+    /**
+     * As {@link #keepWarm(HTTPProtocol, String)}, and also replaces any idle connection that has carried nothing for
+     * longer than {@code maxIdleNanos}. A connection can be dropped silently along the way (a NAT, a proxy's idle
+     * timeout) with nothing to tell this end; once it has been idle that long, only replacing it makes sure the next
+     * request isn't written into a dead connection. A connection is used when a response arrives on it, or when it
+     * connects. Connections with a request in flight are left alone.
+     *
+     * @throws IOException if a connection could not be replaced; it is left closed, to be connected by the next
+     *     request
+     */
+    public void keepWarm(final HTTPProtocol protocol, final String host, final long maxIdleNanos) throws IOException {
+        final HostConnections connections = hostConnections(host);
+        final long now = System.nanoTime();
+        for (int i = 0; i < this.connectionsPerHost; i++) {
+            if (connections.inFlight[i]) {
+                continue;
+            }
+            if (connections.clients[i] != null && now - connections.lastUsedNanos[i] > maxIdleNanos) {
+                recreateConnection(connections, i, protocol, host);
+            } else {
+                readyConnection(connections, i, protocol, host);
+            }
+        }
     }
 
     /**
@@ -455,6 +481,7 @@ public class HTTPClient implements AutoCloseable {
             }
             client.setTcpNoDelay(true);
             client.setReadTimeout(this.readTimeoutMs);
+            connections.lastUsedNanos[index] = System.nanoTime();
         } catch (IOException | RuntimeException e) {
             // A connection whose settings failed is closed rather than left open and unused.
             discardConnection(connections, index);
@@ -480,11 +507,14 @@ public class HTTPClient implements AutoCloseable {
         final boolean[] inFlight;
         // The request gate's tag for each in-flight request from send, handed back when its response arrives.
         final int[] tags;
+        // When each connection last connected or had a response arrive, for keepWarm to tell how long it's been idle.
+        final long[] lastUsedNanos;
 
         HostConnections(final int size) {
             this.clients = new HTTPSocketMessageClient[size];
             this.inFlight = new boolean[size];
             this.tags = new int[size];
+            this.lastUsedNanos = new long[size];
         }
 
         int idleIndex() {

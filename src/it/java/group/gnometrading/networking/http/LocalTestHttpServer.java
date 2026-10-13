@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Minimal HTTP/1.1 keep-alive server for integration tests.
@@ -27,13 +28,26 @@ class LocalTestHttpServer implements AutoCloseable {
 
     private final ServerSocket serverSocket;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicInteger accepted = new AtomicInteger();
+    private final boolean closeAfterEachResponse;
     private final Thread acceptThread;
 
     LocalTestHttpServer() throws IOException {
+        this(false);
+    }
+
+    /** @param closeAfterEachResponse closes the connection after answering, without saying so, as a server dropping it would */
+    LocalTestHttpServer(final boolean closeAfterEachResponse) throws IOException {
+        this.closeAfterEachResponse = closeAfterEachResponse;
         this.serverSocket = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
         this.acceptThread = new Thread(this::acceptLoop, "test-http-server");
         this.acceptThread.setDaemon(true);
         this.acceptThread.start();
+    }
+
+    /** How many connections the server has accepted. */
+    int acceptedConnections() {
+        return accepted.get();
     }
 
     int getPort() {
@@ -44,6 +58,7 @@ class LocalTestHttpServer implements AutoCloseable {
         while (running.get()) {
             try {
                 final Socket client = serverSocket.accept();
+                accepted.incrementAndGet();
                 final Thread handler = new Thread(() -> handleConnection(client), "test-http-handler");
                 handler.setDaemon(true);
                 handler.start();
@@ -113,6 +128,9 @@ class LocalTestHttpServer implements AutoCloseable {
 
                 out.write(HTTP_200);
                 out.flush();
+                if (closeAfterEachResponse) {
+                    return;
+                }
             }
         } catch (Exception e) {
             // Timeout or closed connection — normal during concurrency tests

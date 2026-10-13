@@ -6,7 +6,7 @@
     <artifactId>gnome-networking</artifactId>
     <!-- not using Maven release as we need both MacOS and Ubuntu builds -->
     <!-- update this manually... barbaric, I know -->
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
