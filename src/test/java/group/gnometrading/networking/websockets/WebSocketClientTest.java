@@ -211,6 +211,29 @@ class WebSocketClientTest {
     }
 
     @Test
+    void aRejectedUpgradeReportsItsStatusAndTheBodyThatFollows() throws IOException {
+        String[] reads = {
+            "HTTP/1.1 401 Unauthorized\r\nContent-Length: 19\r\n\r\n", "{\"error\":\"bad key\"}"
+        };
+        int[] next = {0};
+        when(mockSocket.read(any(ByteBuffer.class), anyInt())).thenAnswer(invocation -> {
+            if (next[0] == reads.length) {
+                return -1;
+            }
+            ByteBuffer buffer = invocation.getArgument(0);
+            String chunk = reads[next[0]++];
+            buffer.put(chunk.getBytes());
+            return chunk.length();
+        });
+        when(mockSocket.write(any(ByteBuffer.class), anyInt())).thenReturn(WRITE_BUFFER_SIZE);
+
+        InvalidHandshakeException rejected = assertThrows(InvalidHandshakeException.class, () -> client.connect());
+
+        assertTrue(rejected.getMessage().contains("HTTP/1.1 401 Unauthorized body: {\"error\":\"bad key\"}"),
+                rejected.getMessage());
+    }
+
+    @Test
     void testConnectionClosed() throws IOException, URISyntaxException {
         setupSuccessfulHandshake();
         client.connect();

@@ -12,6 +12,9 @@ import java.util.concurrent.TimeUnit;
 public class HandshakeHandler {
 
     private static final int MAX_STATUS_LINE_LENGTH = 120;
+    static final int MAX_BODY_BYTES = 512;
+    // How long a rejected upgrade may take to deliver its body; the connect has already failed, so this is all it adds.
+    private static final long REJECTION_BODY_WAIT_NANOS = TimeUnit.SECONDS.toNanos(1);
 
     public static final int DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -38,12 +41,85 @@ public class HandshakeHandler {
         HandshakeState result = acceptHandshake(client, draft, System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis));
 
         if (result == HandshakeState.INVALID_PROTOCOL || result == HandshakeState.INVALID_HEADERS) {
-            // The status line says why, e.g. "HTTP/1.1 451" from a venue refusing the region.
-            throw new InvalidHandshakeException(result, statusLine(client.getReadBuffer()));
+            // The status line says why, e.g. "HTTP/1.1 451" from a venue refusing the region, and the body often says
+            // more, e.g. which key a 401 rejected.
+            readRejectionBody(client, System.nanoTime() + REJECTION_BODY_WAIT_NANOS);
+            throw new InvalidHandshakeException(result, rejection(client.getReadBuffer()));
         }
         if (result != HandshakeState.MATCHED) {
             throw new InvalidHandshakeException(result);
         }
+    }
+
+    /** The status line, and up to {@link #MAX_BODY_BYTES} of the body with anything unprintable as '.'. */
+    static String rejection(final ByteBuffer response) {
+        final String status = statusLine(response);
+        final int bodyStart = bodyStart(response);
+        if (bodyStart < 0 || bodyStart >= response.limit()) {
+            return status;
+        }
+        final StringBuilder body = new StringBuilder(status).append(" body: ");
+        final int end = Math.min(response.limit(), bodyStart + MAX_BODY_BYTES);
+        for (int i = bodyStart; i < end; i++) {
+            final char c = (char) (response.get(i) & 0xFF);
+            body.append(c >= ' ' && c < 0x7F ? c : '.');
+        }
+        return body.toString();
+    }
+
+    /** Reads on until the body's first bytes are in, the server closes, or the deadline passes. */
+    private static void readRejectionBody(final Client client, final long deadlineNanos) {
+        try {
+            while (System.nanoTime() - deadlineNanos < 0) {
+                final ByteBuffer response = client.getReadBuffer();
+                final int bodyStart = bodyStart(response);
+                if (bodyStart >= 0) {
+                    final int wanted = Math.min(MAX_BODY_BYTES, contentLength(response, bodyStart));
+                    if (response.limit() - bodyStart >= wanted) {
+                        return;
+                    }
+                }
+                if (client.read() < 0) {
+                    return;
+                }
+            }
+        } catch (IOException e) {
+            // Whatever was read already is still reported.
+        }
+    }
+
+    /** Where the body starts, after the blank line ending the headers; -1 before the headers are all in. */
+    private static int bodyStart(final ByteBuffer response) {
+        for (int i = response.position(); i + 3 < response.limit(); i++) {
+            if (response.get(i) == '\r' && response.get(i + 1) == '\n' && response.get(i + 2) == '\r'
+                    && response.get(i + 3) == '\n') {
+                return i + 4;
+            }
+        }
+        return -1;
+    }
+
+    /** The Content-Length header's value; {@link #MAX_BODY_BYTES} if it is missing or unreadable. */
+    private static int contentLength(final ByteBuffer response, final int bodyStart) {
+        final StringBuilder headers = new StringBuilder();
+        for (int i = response.position(); i < bodyStart; i++) {
+            headers.append(Character.toLowerCase((char) (response.get(i) & 0xFF)));
+        }
+        final int at = headers.indexOf("\ncontent-length:");
+        if (at < 0) {
+            return MAX_BODY_BYTES;
+        }
+        int i = at + "\ncontent-length:".length();
+        while (i < headers.length() && headers.charAt(i) == ' ') {
+            i++;
+        }
+        long length = 0;
+        boolean any = false;
+        while (i < headers.length() && Character.isDigit(headers.charAt(i)) && length <= MAX_BODY_BYTES) {
+            length = length * 10 + (headers.charAt(i++) - '0');
+            any = true;
+        }
+        return any ? (int) Math.min(length, MAX_BODY_BYTES) : MAX_BODY_BYTES;
     }
 
     private static String statusLine(final ByteBuffer response) {
