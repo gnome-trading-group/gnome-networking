@@ -78,6 +78,16 @@ class HTTPSocketMessageClient extends AbstractSocketMessageClient {
         return this.protocol;
     }
 
+    String host() {
+        return this.host;
+    }
+
+    /** Sends the request {@link HTTPRequestWriter} encoded into the write buffer. */
+    int sendEncoded() throws IOException {
+        this.writeBuffer.flip();
+        return writeRequest();
+    }
+
     static int parsePort(final HTTPProtocol protocol) {
         return protocol == HTTPProtocol.HTTPS ? DEFAULT_HTTPS_PORT : DEFAULT_PORT;
     }

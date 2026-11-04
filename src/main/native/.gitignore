@@ -14,3 +14,12 @@ CTestTestfile.cmake
 _deps
 build
 .vscode
+
+### Native build output (in-source CMake build of BoringSSL and libsecp256k1) ###
+*.a
+!boringssl/util/ar/testdata/**/*.a
+*_test
+boringssl/bssl
+boringssl/tool/bssl
+boringssl/ssl/test/bssl_shim
+boringssl/util/fipstools/test_fips

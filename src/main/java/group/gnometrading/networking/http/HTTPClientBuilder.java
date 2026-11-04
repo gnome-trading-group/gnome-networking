@@ -112,6 +112,11 @@ public final class HTTPClientBuilder {
      * the like: the first name is index 0. Names are matched ignoring case.
      */
     public HTTPClientBuilder captureHeaders(final String... names) {
+        this.capturedHeaders = lowercaseNames(names);
+        return this;
+    }
+
+    static byte[][] lowercaseNames(final String... names) {
         if (names.length > MAX_CAPTURED_HEADERS) {
             throw new IllegalArgumentException("At most " + MAX_CAPTURED_HEADERS + " headers can be captured");
         }
@@ -122,8 +127,7 @@ public final class HTTPClientBuilder {
             }
             lowercase[i] = names[i].toLowerCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII);
         }
-        this.capturedHeaders = lowercase;
-        return this;
+        return lowercase;
     }
 
     public HTTPClient build() {

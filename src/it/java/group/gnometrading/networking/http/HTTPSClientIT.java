@@ -9,6 +9,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLSocket;
 import org.junit.jupiter.api.BeforeAll;
@@ -121,6 +123,40 @@ class HTTPSClientIT {
 
             Thread.sleep(800);
             assertEquals("fresh", body(client.get(HTTPProtocol.HTTPS, HOST, "/fast")));
+        }
+    }
+
+    @Test
+    void asyncConnectionsAreUsedOnceOpenThoughTheirSessionTicketsSitUnread() throws Exception {
+        try (TlsServer server = new TlsServer((connection, socket, raw) -> {
+                    while (readRequest(socket.getInputStream())) {
+                        socket.getOutputStream().write(response("ok"));
+                        socket.getOutputStream().flush();
+                    }
+                });
+                AsyncHTTPConnections connections = AsyncHTTPConnections.builder(HTTPProtocol.HTTPS, HOST)
+                        .withPort(server.port())
+                        .withConnections(2)
+                        .withConnectTimeout(2_000)
+                        .withSocketFactory(new NativeSSLSocketFactory(caFile))
+                        .build()) {
+            new HTTPConnector(List.of(connections), HTTPConnector.Listener.NONE).doWork();
+            Thread.sleep(200);
+
+            for (int i = 0; i < 5; i++) {
+                final int connection = connections.acquire();
+                assertTrue(connection >= 0, "an open connection holding only session tickets is usable");
+                connections.request(connection, HTTPMethod.GET).path("/markets".getBytes(StandardCharsets.US_ASCII)).noBody();
+                assertEquals(
+                        AsyncHTTPConnections.SENT,
+                        connections.send(connection, i, System.nanoTime() + TimeUnit.SECONDS.toNanos(3)));
+                while (!connections.poll()) {
+                    Thread.onSpinWait();
+                }
+                assertEquals(HTTPCompletion.RESPONSE, connections.completion().outcome());
+                assertEquals("ok", body(connections.completion().response()));
+            }
+            assertEquals(2, server.connections());
         }
     }
 
