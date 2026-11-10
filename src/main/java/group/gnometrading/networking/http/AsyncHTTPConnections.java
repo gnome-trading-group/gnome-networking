@@ -139,19 +139,40 @@ public final class AsyncHTTPConnections implements AutoCloseable {
     }
 
     /**
-     * Hands back every open, idle connection that is stale (idle longer than the max idle, or closed by the server), so
-     * the connector replaces it before a request needs it: one found stale only at {@link #acquire} costs that request a
-     * new connect, longer than a request that must go now can wait, and on a quiet account every connection goes stale
-     * between requests. Only the requesting thread calls this, as often as it likes; it allocates nothing.
+     * Hands connections back to the connector for replacing before a request needs them: any open one the server has
+     * closed or that holds unread bytes, and the one idle longest once it has been idle {@code olderThanNanos} (less than
+     * the max idle, so it is replaced before {@link #acquire} would refuse it). One found stale only at acquire costs
+     * that request a new connect, longer than a request that must go now can wait, and on a quiet account every
+     * connection goes stale between requests. Only one idle connection goes per call, so the rest stay ready while it is
+     * replaced: connections opened together would otherwise all be replaced together, leaving none for a while. Only
+     * the requesting thread calls this; it allocates nothing.
      */
-    public void retireIdle(final long nowNanos) {
+    public void retireIdle(final long nowNanos, final long olderThanNanos) {
+        int oldest = NONE;
+        long oldestUsedNanos = 0;
         for (int index = 0; index < this.clients.length; index++) {
-            if (this.states.get(index) == READY
-                    && (nowNanos - this.lastUsedNanos[index] > this.maxIdleNanos
-                            || this.clients[index].probe() != SocketProbe.IDLE)) {
+            if (this.states.get(index) != READY) {
+                continue;
+            }
+            final HTTPSocketMessageClient client = this.clients[index];
+            if (client.getReadBuffer().hasRemaining() || client.probe() != SocketProbe.IDLE) {
                 this.states.set(index, DEAD);
+                continue;
+            }
+            final long usedNanos = this.lastUsedNanos[index];
+            if (nowNanos - usedNanos > olderThanNanos && (oldest == NONE || usedNanos - oldestUsedNanos < 0)) {
+                oldest = index;
+                oldestUsedNanos = usedNanos;
             }
         }
+        if (oldest != NONE) {
+            this.states.set(oldest, DEAD);
+        }
+    }
+
+    /** How long a connection may sit unused before {@link #acquire} refuses it. */
+    public long maxIdleNanos() {
+        return this.maxIdleNanos;
     }
 
     /** Starts the request to write on {@code connection}, which {@link #acquire} returned. */

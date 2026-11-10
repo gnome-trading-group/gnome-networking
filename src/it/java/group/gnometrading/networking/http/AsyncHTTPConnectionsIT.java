@@ -162,15 +162,42 @@ class AsyncHTTPConnectionsIT {
     @Test
     void anIdleConnectionRetiredAheadOfTimeIsReplacedBeforeTheNextRequestNeedsIt() throws Exception {
         final ChaosServer server = server();
-        final AsyncHTTPConnections connections = connections(server, 1, TimeUnit.MILLISECONDS.toNanos(50));
+        final AsyncHTTPConnections connections = connections(server, 1, TimeUnit.MILLISECONDS.toNanos(200));
         awaitReady(connections, 1);
-        Thread.sleep(100);
+        Thread.sleep(150);
 
-        connections.retireIdle(System.nanoTime());
+        connections.retireIdle(System.nanoTime(), TimeUnit.MILLISECONDS.toNanos(100));
         awaitAccepted(server, 2);
         awaitReady(connections, 1);
 
         assertNotEquals(AsyncHTTPConnections.NONE, connections.acquire(), "a fresh connection waits for the request");
+    }
+
+    @Test
+    void idleConnectionsAreRetiredOneAtATimeOldestFirstSoTheRestStayReady() throws Exception {
+        final ChaosServer server = server();
+        final AsyncHTTPConnections connections = connections(server, 3, TimeUnit.MINUTES.toNanos(1));
+        awaitReady(connections, 3);
+        // Connection 1 used last, so 0 and 2 are the older ones.
+        Thread.sleep(20);
+        connections.request(1, HTTPMethod.GET).path(ascii("/delay/0")).noBody();
+        assertEquals(AsyncHTTPConnections.SENT, connections.send(1, 1, System.nanoTime() + 5 * SECOND));
+        while (!connections.poll()) {
+            Thread.onSpinWait();
+        }
+        this.connector.stop();
+        this.connector = null;
+
+        connections.retireIdle(System.nanoTime(), 0);
+
+        final List<Integer> retired = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            if (connections.state(i) != AsyncHTTPConnections.READY) {
+                retired.add(i);
+            }
+        }
+        assertEquals(1, retired.size(), "one at a time");
+        assertNotEquals(1, retired.get(0), "the one used most recently stays");
     }
 
     @Test
@@ -182,7 +209,7 @@ class AsyncHTTPConnectionsIT {
         // The server's close reaches this end before anything looks.
         Thread.sleep(100);
 
-        connections.retireIdle(System.nanoTime());
+        connections.retireIdle(System.nanoTime(), TimeUnit.MINUTES.toNanos(1));
         awaitAccepted(server, 2);
         awaitReady(connections, 1);
 
@@ -195,7 +222,7 @@ class AsyncHTTPConnectionsIT {
         final AsyncHTTPConnections connections = connections(server, 2, TimeUnit.MINUTES.toNanos(1));
         awaitReady(connections, 2);
 
-        connections.retireIdle(System.nanoTime());
+        connections.retireIdle(System.nanoTime(), TimeUnit.SECONDS.toNanos(30));
 
         assertEquals(AsyncHTTPConnections.READY, connections.state(0));
         assertEquals(AsyncHTTPConnections.READY, connections.state(1));
@@ -252,7 +279,7 @@ class AsyncHTTPConnectionsIT {
                     assertEquals(HTTPCompletion.RESPONSE, connections.completion().outcome());
                     done++;
                 }
-                connections.retireIdle(System.nanoTime());
+                connections.retireIdle(System.nanoTime(), TimeUnit.SECONDS.toNanos(30));
             }
         };
         requests.run();
