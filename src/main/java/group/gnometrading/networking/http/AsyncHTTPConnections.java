@@ -138,6 +138,22 @@ public final class AsyncHTTPConnections implements AutoCloseable {
         return NONE;
     }
 
+    /**
+     * Hands back every open, idle connection that is stale (idle longer than the max idle, or closed by the server), so
+     * the connector replaces it before a request needs it: one found stale only at {@link #acquire} costs that request a
+     * new connect, longer than a request that must go now can wait, and on a quiet account every connection goes stale
+     * between requests. Only the requesting thread calls this, as often as it likes; it allocates nothing.
+     */
+    public void retireIdle(final long nowNanos) {
+        for (int index = 0; index < this.clients.length; index++) {
+            if (this.states.get(index) == READY
+                    && (nowNanos - this.lastUsedNanos[index] > this.maxIdleNanos
+                            || this.clients[index].probe() != SocketProbe.IDLE)) {
+                this.states.set(index, DEAD);
+            }
+        }
+    }
+
     /** Starts the request to write on {@code connection}, which {@link #acquire} returned. */
     public HTTPRequestWriter request(final int connection, final HTTPMethod method) {
         requireState(connection, READY);

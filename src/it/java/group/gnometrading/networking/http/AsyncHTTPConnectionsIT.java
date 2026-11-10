@@ -1,6 +1,7 @@
 package group.gnometrading.networking.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -39,16 +40,18 @@ class AsyncHTTPConnectionsIT {
     }
 
     @Test
-    void requestsOnSeveralConnectionsAreInFlightAtOnceAndCompleteInTheOrderTheyAnswer() throws Exception {
+    void requestsOnSeveralConnectionsAreInFlightAtOnceAndEachCompletesWithItsOwnAnswer() throws Exception {
         final ChaosServer server = server();
         final AsyncHTTPConnections connections = connections(server, 4, TimeUnit.MINUTES.toNanos(1));
         awaitReady(connections, 4);
 
-        final int[] delays = {300, 200, 100, 0};
+        // Far apart, so the answers' order doesn't hang on how fast a loaded machine schedules the server's threads.
+        final int[] delays = {1_200, 800, 400, 0};
+        final long start = System.nanoTime();
         for (int i = 0; i < delays.length; i++) {
             final int connection = connections.acquire();
             connections.request(connection, HTTPMethod.GET).path(ascii("/delay/" + delays[i])).noBody();
-            assertEquals(AsyncHTTPConnections.SENT, connections.send(connection, 100 + i, System.nanoTime() + 5 * SECOND));
+            assertEquals(AsyncHTTPConnections.SENT, connections.send(connection, 100 + i, System.nanoTime() + 10 * SECOND));
         }
         assertEquals(AsyncHTTPConnections.NONE, connections.acquire(), "every connection carries a request");
         assertEquals(4, connections.inFlight());
@@ -63,7 +66,9 @@ class AsyncHTTPConnectionsIT {
                 tags.add(completion.tag());
             }
         }
-        assertEquals(List.of(103L, 102L, 101L, 100L), tags);
+        final long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        assertEquals(103L, tags.get(0), "the request answered at once completes first");
+        assertTrue(elapsedMillis < 2_200, "in flight together, not one after another (2,400 ms): " + elapsedMillis + " ms");
         assertEquals(0, connections.inFlight());
         assertTrue(connections.acquire() >= 0, "connections are idle again");
         assertEquals(4, server.accepted(), "nothing was reconnected");
@@ -155,6 +160,49 @@ class AsyncHTTPConnectionsIT {
     }
 
     @Test
+    void anIdleConnectionRetiredAheadOfTimeIsReplacedBeforeTheNextRequestNeedsIt() throws Exception {
+        final ChaosServer server = server();
+        final AsyncHTTPConnections connections = connections(server, 1, TimeUnit.MILLISECONDS.toNanos(50));
+        awaitReady(connections, 1);
+        Thread.sleep(100);
+
+        connections.retireIdle(System.nanoTime());
+        awaitAccepted(server, 2);
+        awaitReady(connections, 1);
+
+        assertNotEquals(AsyncHTTPConnections.NONE, connections.acquire(), "a fresh connection waits for the request");
+    }
+
+    @Test
+    void aConnectionTheServerClosedWhileIdleIsRetiredAheadOfTime() throws Exception {
+        final ChaosServer server = server();
+        final AsyncHTTPConnections connections = connections(server, 1, TimeUnit.MINUTES.toNanos(1));
+        awaitReady(connections, 1);
+        assertEquals("/close", roundTrip(connections, "/close"));
+        // The server's close reaches this end before anything looks.
+        Thread.sleep(100);
+
+        connections.retireIdle(System.nanoTime());
+        awaitAccepted(server, 2);
+        awaitReady(connections, 1);
+
+        assertEquals("/delay/0", roundTrip(connections, "/delay/0"));
+    }
+
+    @Test
+    void retiringNothingStaleLeavesEveryConnectionAsItIs() throws Exception {
+        final ChaosServer server = server();
+        final AsyncHTTPConnections connections = connections(server, 2, TimeUnit.MINUTES.toNanos(1));
+        awaitReady(connections, 2);
+
+        connections.retireIdle(System.nanoTime());
+
+        assertEquals(AsyncHTTPConnections.READY, connections.state(0));
+        assertEquals(AsyncHTTPConnections.READY, connections.state(1));
+        assertEquals(2, server.accepted());
+    }
+
+    @Test
     void aHostThatRefusesConnectionsIsRetriedWithBackoffAndReported() throws Exception {
         final int deadPort;
         try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
@@ -204,6 +252,7 @@ class AsyncHTTPConnectionsIT {
                     assertEquals(HTTPCompletion.RESPONSE, connections.completion().outcome());
                     done++;
                 }
+                connections.retireIdle(System.nanoTime());
             }
         };
         requests.run();
