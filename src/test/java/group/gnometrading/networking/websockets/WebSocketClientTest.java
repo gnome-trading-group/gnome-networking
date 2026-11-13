@@ -245,4 +245,29 @@ class WebSocketClientTest {
         assertFalse(response.isSuccess());
         assertTrue(response.isClosed());
     }
+
+    @Test
+    void aCloseFrameKeepsItsStatusCodeAndReason() throws IOException {
+        setupSuccessfulHandshake();
+        client.connect();
+        byte[] reason = "going away".getBytes();
+        when(mockSocket.read(any(ByteBuffer.class), anyInt())).thenAnswer(invocation -> {
+            ByteBuffer buffer = invocation.getArgument(0);
+            buffer.put((byte) 0x88);
+            buffer.put((byte) (2 + reason.length));
+            buffer.putShort((short) 1001);
+            buffer.put(reason);
+            return 2 + 2 + reason.length;
+        });
+
+        WebSocketResponse response = client.read();
+
+        assertTrue(response.isClosed());
+        assertEquals(Opcode.CLOSING, response.getOpcode());
+        ByteBuffer body = response.getBody();
+        assertEquals(1001, body.getShort());
+        byte[] received = new byte[body.remaining()];
+        body.get(received);
+        assertArrayEquals(reason, received);
+    }
 }

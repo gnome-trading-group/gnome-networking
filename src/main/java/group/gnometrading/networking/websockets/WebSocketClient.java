@@ -172,8 +172,8 @@ public class WebSocketClient {
 
         final Opcode opcode = frame.getOpcode();
         if (opcode == Opcode.CLOSING) {
-            this.body.clear().flip();
-            return this.response.update(true, opcode, this.body, true);
+            // The payload is the venue's status code and reason, the only record of why it hung up.
+            return this.response.update(true, opcode, payload(buffer, frame, opcode), true);
         }
         return this.response.update(true, opcode, payload(buffer, frame, opcode), false);
     }
