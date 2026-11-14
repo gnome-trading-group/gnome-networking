@@ -120,6 +120,17 @@ class HTTPHeaderCaptureTest {
     }
 
     @Test
+    void asyncConnectionsSayWhereEachCapturedHeaderIs() throws IOException {
+        try (AsyncHTTPConnections connections = AsyncHTTPConnections.builder(HTTPProtocol.HTTP, "127.0.0.1")
+                .captureHeaders("Retry-After", "x-pm-server-latency")
+                .build()) {
+            assertEquals(0, connections.headerIndex("retry-after"));
+            assertEquals(1, connections.headerIndex("X-PM-Server-Latency"));
+            assertEquals(-1, connections.headerIndex("server-timing"));
+        }
+    }
+
+    @Test
     void builderLimitsAndValidatesNames() {
         assertThrows(IllegalArgumentException.class, () -> HTTPClient.builder().captureHeaders(""));
         assertThrows(

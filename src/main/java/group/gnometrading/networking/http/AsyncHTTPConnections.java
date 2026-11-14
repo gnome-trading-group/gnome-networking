@@ -5,6 +5,7 @@ import group.gnometrading.networking.sockets.factory.GnomeSocketFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.LongSupplier;
@@ -49,6 +50,7 @@ public final class AsyncHTTPConnections implements AutoCloseable {
     private final long[] deadlines;
     private final HTTPRequestWriter writer = new HTTPRequestWriter();
     private final HTTPCompletion completion;
+    private final byte[][] capturedHeaders;
     private final ByteBuffer body;
     private final LongSupplier nanoClock;
     private final long maxIdleNanos;
@@ -85,6 +87,7 @@ public final class AsyncHTTPConnections implements AutoCloseable {
         this.tags = new long[settings.connections];
         this.deadlines = new long[settings.connections];
         this.completion = new HTTPCompletion(settings.capturedHeaders.length);
+        this.capturedHeaders = settings.capturedHeaders;
         this.body = ByteBuffer.allocate(settings.readBufferSize);
         this.nanoClock = settings.nanoClock;
         this.maxIdleNanos = settings.maxIdleNanos;
@@ -97,6 +100,20 @@ public final class AsyncHTTPConnections implements AutoCloseable {
 
     public static Builder builder(final HTTPProtocol protocol, final String host) {
         return new Builder(protocol, host);
+    }
+
+    /**
+     * Where responses keep {@code name}'s value, for {@link HTTPResponse#header}; -1 if they don't capture it. Names
+     * match ignoring case. Allocates: for setup, not per request.
+     */
+    public int headerIndex(final String name) {
+        final byte[] lowercase = HTTPClientBuilder.lowercaseNames(name)[0];
+        for (int i = 0; i < this.capturedHeaders.length; i++) {
+            if (Arrays.equals(this.capturedHeaders[i], lowercase)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public String host() {
